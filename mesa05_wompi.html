@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mesa 05 — El Sabor Colombiano</title>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap');
+
+    :root {
+      --negro: #1a1a1a;
+      --crema: #f5f0e8;
+      --verde: #2ecc71;
+      --nequi: #63029d;
+      --rojo-suave: #e74c3c;
+      --gris: #888;
+      --radio: 14px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--crema);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 24px 16px 48px;
+    }
+
+    .tarjeta {
+      background: white;
+      width: 100%;
+      max-width: 420px;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.10);
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: var(--negro);
+      color: white;
+      padding: 28px 24px 24px;
+      position: relative;
+    }
+    .header-chip {
+      display: inline-block;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 100px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      margin-bottom: 10px;
+    }
+    .header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 28px;
+      font-weight: 400;
+      line-height: 1.1;
+    }
+    .header p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.55);
+      margin-top: 4px;
+    }
+
+    /* ── ITEMS ── */
+    .items {
+      padding: 24px 24px 0;
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0ebe0;
+      gap: 12px;
+    }
+    .item:last-child { border-bottom: none; }
+    .item-nombre {
+      font-size: 14px;
+      color: #444;
+      flex: 1;
+    }
+    .item-precio {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--negro);
+      white-space: nowrap;
+    }
+
+    /* ── TOTAL ── */
+    .total-box {
+      margin: 16px 24px 0;
+      background: var(--negro);
+      color: white;
+      padding: 16px 20px;
+      border-radius: var(--radio);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-box span:first-child {
+      font-size: 13px;
+      opacity: 0.6;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .total-box strong {
+      font-family: 'DM Serif Display', serif;
+      font-size: 24px;
+      font-weight: 400;
+    }
+
+    /* ── PROPINA ── */
+    .seccion {
+      padding: 20px 24px 0;
+    }
+    .seccion-titulo {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gris);
+      margin-bottom: 10px;
+    }
+    .propina-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .btn-propina {
+      padding: 10px 4px;
+      border: 1.5px solid #e5e5e5;
+      background: white;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .btn-propina:hover { border-color: var(--negro); color: var(--negro); }
+    .btn-propina.activo {
+      background: var(--negro);
+      border-color: var(--negro);
+      color: white;
+    }
+    .propina-libre {
+      display: flex;
+      align-items: center;
+      border: 1.5px solid #e5e5e5;
+      border-radius: 10px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .propina-libre:focus-within { border-color: var(--negro); }
+    .propina-libre span {
+      padding: 10px 12px;
+      font-size: 14px;
+      color: var(--gris);
+      background: #fafafa;
+      border-right: 1px solid #e5e5e5;
+    }
+    .propina-libre input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--negro);
+    }
+    .resumen-propina {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--gris);
+      min-height: 18px;
+    }
+    .resumen-propina strong { color: var(--negro); }
+
+    /* ── TOTAL FINAL ── */
+    .total-final {
+      margin: 16px 24px 0;
+      background: #f7f3eb;
+      border: 1.5px solid #ede8dc;
+      padding: 14px 18px;
+      border-radius: var(--radio);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--gris);
+    }
+    .total-final strong {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--negro);
+    }
+
+    /* ── BOTONES DE PAGO ── */
+    .metodos {
+      padding: 20px 24px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .btn-pago {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: var(--radio);
+      font-size: 15px;
+      font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 0.15s, opacity 0.15s;
+      text-decoration: none;
+    }
+    .btn-pago:active { transform: scale(0.97); }
+    .btn-wompi {
+      background: #1a1a1a;
+      color: white;
+    }
+    .btn-wompi svg { opacity: 0.9; }
+    .btn-pse {
+      background: #ff6b6b;
+      color: white;
+    }
+    .btn-pago:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .aviso-sandbox {
+      text-align: center;
+      font-size: 11px;
+      color: #aaa;
+      padding: 0 24px 20px;
+      line-height: 1.5;
+    }
+    .aviso-sandbox a { color: #aaa; }
+
+    /* ── PANTALLA DE ÉXITO ── */
+    #pantalla-exito {
+      display: none;
+      padding: 48px 28px 40px;
+      text-align: center;
+    }
+    .check-circulo {
+      width: 72px;
+      height: 72px;
+      background: var(--verde);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 34px;
+    }
+    #pantalla-exito h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 26px;
+      font-weight: 400;
+      margin-bottom: 8px;
+    }
+    #pantalla-exito p {
+      color: var(--gris);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .ref-box {
+      background: #f5f0e8;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin: 20px 0;
+      font-size: 13px;
+      color: #555;
+    }
+    .ref-box strong { display: block; font-size: 15px; color: var(--negro); margin-top: 4px; }
+    .btn-descarga {
+      margin-top: 16px;
+      background: var(--negro);
+      color: white;
+      border-radius: var(--radio);
+      padding: 14px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn-volver {
+      margin-top: 10px;
+      background: #f0ebe0;
+      color: #555;
+      border-radius: var(--radio);
+      padding: 14px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* ── LOADER ── */
+    .loader-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+      color: white;
+      font-size: 14px;
+    }
+    .loader-overlay.visible { display: flex; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- Loader -->
+<div class="loader-overlay" id="loader">
+  <div class="spinner"></div>
+  <span id="loader-texto">Conectando con Wompi...</span>
+</div>
+
+<div class="tarjeta">
+
+  <!-- ── PANTALLA PRINCIPAL ── -->
+  <div id="pantalla-pago">
+    <div class="header">
+      <div class="header-chip">Mesa 05</div>
+      <h1>El Sabor<br>Colombiano</h1>
+      <p>NIT 900.123.456-1 · Bogotá</p>
+    </div>
+
+    <!-- Items -->
+    <div class="items">
+      <div class="item">
+        <span class="item-nombre">1× Bandeja Paisa Especial</span>
+        <span class="item-precio">$35.000</span>
+      </div>
+      <div class="item">
+        <span class="item-nombre">2× Jugo de Mandarina</span>
+        <span class="item-precio">$14.000</span>
+      </div>
+      <div class="item">
+        <span class="item-nombre">1× Porción de Patacones</span>
+        <span class="item-precio">$8.000</span>
+      </div>
+    </div>
+
+    <!-- Subtotal -->
+    <div class="total-box">
+      <span>Subtotal</span>
+      <strong>$57.000</strong>
+    </div>
+
+    <!-- Propina -->
+    <div class="seccion">
+      <p class="seccion-titulo">¿Deseas dejar propina?</p>
+      <div class="propina-grid">
+        <button class="btn-propina" onclick="seleccionarPropina(this, 10)">10%</button>
+        <button class="btn-propina activo" onclick="seleccionarPropina(this, 15)">15%</button>
+        <button class="btn-propina" onclick="seleccionarPropina(this, 20)">20%</button>
+      </div>
+      <div class="propina-libre">
+        <span>$</span>
+        <input type="number" id="propina-libre" placeholder="Otro valor" min="0"
+               oninput="propinalLibre(this.value)">
+      </div>
+      <p class="resumen-propina" id="resumen-propina">Propina: <strong>$8.550</strong> (15%)</p>
+    </div>
+
+    <!-- Total con propina -->
+    <div class="total-final">
+      <span>Total a pagar</span>
+      <strong id="total-display">$65.550</strong>
+    </div>
+
+    <!-- Métodos de pago -->
+    <div class="metodos">
+      <button class="btn-pago btn-wompi" onclick="pagarConWompi('tarjeta')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        Pagar con Tarjeta · Wompi
+      </button>
+      <button class="btn-pago btn-pse" onclick="pagarConWompi('pse')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Pagar con PSE / Nequi
+      </button>
+    </div>
+    <p class="aviso-sandbox">
+      🔒 Pago seguro vía <strong>Wompi</strong> (Bancolombia).<br>
+      Modo prueba activo · <a href="https://docs.wompi.co/docs/colombia/transacciones-con-tarjeta/#tarjetas-de-prueba" target="_blank">Ver tarjetas de prueba</a>
+    </p>
+  </div>
+
+  <!-- ── PANTALLA DE ÉXITO ── -->
+  <div id="pantalla-exito">
+    <div class="check-circulo">✅</div>
+    <h2>¡Pago exitoso!</h2>
+    <p>Tu transacción fue procesada correctamente.<br>El ticket se imprime en la barra.</p>
+    <div class="ref-box">
+      Referencia de pago
+      <strong id="ref-numero">—</strong>
+    </div>
+    <button class="btn-pago btn-descarga" onclick="descargarPDF()">
+      📥 Descargar factura PDF
+    </button>
+    <button class="btn-pago btn-volver" onclick="location.reload()">
+      Volver al inicio
+    </button>
+  </div>
+
+</div><!-- /tarjeta -->
+
+<script>
+  /* ════════════════════════════════════════════
+     CONFIGURACIÓN — CAMBIA ESTOS VALORES
+     ════════════════════════════════════════════
+     1. Ve a https://comercios.wompi.co
+     2. Crea una cuenta gratuita
+     3. En "Desarrolladores" copia tu llave pública de SANDBOX
+     4. Pégala abajo en WOMPI_PUBLIC_KEY
+  */
+  const WOMPI_PUBLIC_KEY = 'pub_test_DfqmZfcGDRaWQXEfMPmZsRhHdJQQIWfq';
+  // ↑ Esta es una llave de demo pública de Wompi para pruebas
+
+  const SUBTOTAL = 57000; // en pesos colombianos
+  let propina = Math.round(SUBTOTAL * 0.15);
+  let metodoPagoUsado = 'Tarjeta · Wompi';
+  let referenciaPago = '';
+
+  /* ── PROPINA ── */
+  function actualizarTotal() {
+    const total = SUBTOTAL + propina;
+    document.getElementById('total-display').textContent =
+      '$' + total.toLocaleString('es-CO');
+  }
+
+  function seleccionarPropina(btn, pct) {
+    document.querySelectorAll('.btn-propina').forEach(b => b.classList.remove('activo'));
+    btn.classList.add('activo');
+    document.getElementById('propina-libre').value = '';
+    propina = Math.round(SUBTOTAL * pct / 100);
+    document.getElementById('resumen-propina').innerHTML =
+      'Propina: <strong>$' + propina.toLocaleString('es-CO') + '</strong> (' + pct + '%)';
+    actualizarTotal();
+  }
+
+  function propinalLibre(val) {
+    document.querySelectorAll('.btn-propina').forEach(b => b.classList.remove('activo'));
+    propina = parseInt(val) || 0;
+    document.getElementById('resumen-propina').innerHTML =
+      propina > 0
+        ? 'Propina: <strong>$' + propina.toLocaleString('es-CO') + '</strong>'
+        : 'Sin propina';
+    actualizarTotal();
+  }
+
+  /* Inicializar total */
+  actualizarTotal();
+
+  /* ── WOMPI ── */
+  function pagarConWompi(tipo) {
+    metodoPagoUsado = tipo === 'pse' ? 'PSE / Nequi' : 'Tarjeta · Wompi';
+    const totalCentavos = (SUBTOTAL + propina) * 100; // Wompi recibe en centavos
+    referenciaPago = 'COL-' + Date.now();
+
+    mostrarLoader('Abriendo pasarela de pago...');
+
+    /* ── Construimos la URL de Wompi Checkout ──
+       Documentación: https://docs.wompi.co/docs/colombia/widget-checkout-web/
+    */
+    const params = new URLSearchParams({
+      'public-key': WOMPI_PUBLIC_KEY,
+      currency: 'COP',
+      'amount-in-cents': totalCentavos,
+      reference: referenciaPago,
+      'redirect-url': window.location.href + '?pago=ok&ref=' + referenciaPago,
+      'expiration-time': new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+    });
+
+    // Wompi abre en popup en escritorio o redirige en móvil
+    const url = 'https://checkout.wompi.co/p/?' + params.toString();
+    
+    setTimeout(() => {
+      ocultarLoader();
+      // Abre en nueva pestaña para no perder el estado de la app
+      const popup = window.open(url, '_blank', 'width=480,height=700,left=100,top=50');
+      if (!popup) {
+        // Si el navegador bloqueó el popup, redirige directamente
+        window.location.href = url;
+      } else {
+        // Vigilamos si el popup se cierra (el usuario terminó el pago)
+        const check = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(check);
+            mostrarExito();
+          }
+        }, 800);
+      }
+    }, 600);
+  }
+
+  /* ── Revisar si venimos de redirect de Wompi ── */
+  window.addEventListener('load', () => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('pago') === 'ok') {
+      referenciaPago = params.get('ref') || 'N/A';
+      mostrarExito();
+    }
+  });
+
+  function mostrarExito() {
+    document.getElementById('pantalla-pago').style.display = 'none';
+    document.getElementById('pantalla-exito').style.display = 'block';
+    document.getElementById('ref-numero').textContent = referenciaPago || 'REF-' + Date.now();
+  }
+
+  /* ── LOADER ── */
+  function mostrarLoader(texto) {
+    document.getElementById('loader-texto').textContent = texto;
+    document.getElementById('loader').classList.add('visible');
+  }
+  function ocultarLoader() {
+    document.getElementById('loader').classList.remove('visible');
+  }
+
+  /* ── FACTURA PDF ── */
+  function descargarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a5' });
+    const total = SUBTOTAL + propina;
+
+    // Encabezado
+    doc.setFillColor(26, 26, 26);
+    doc.rect(0, 0, 148, 40, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('EL SABOR COLOMBIANO', 74, 18, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('NIT: 900.123.456-1 · Bogotá, Colombia', 74, 26, { align: 'center' });
+    doc.text('Mesa 05', 74, 34, { align: 'center' });
+
+    // Items
+    doc.setTextColor(60, 60, 60);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    let y = 54;
+    const items = [
+      ['1× Bandeja Paisa Especial', '$35.000'],
+      ['2× Jugo de Mandarina', '$14.000'],
+      ['1× Porción de Patacones', '$8.000'],
+    ];
+    items.forEach(([nombre, precio]) => {
+      doc.text(nombre, 14, y);
+      doc.text(precio, 134, y, { align: 'right' });
+      y += 10;
+    });
+
+    // Línea separadora
+    doc.setDrawColor(220, 215, 205);
+    doc.line(14, y, 134, y);
+    y += 8;
+
+    // Subtotal
+    doc.setTextColor(100, 100, 100);
+    doc.text('Subtotal', 14, y);
+    doc.text('$57.000', 134, y, { align: 'right' });
+    y += 8;
+
+    if (propina > 0) {
+      doc.text('Propina', 14, y);
+      doc.text('$' + propina.toLocaleString('es-CO'), 134, y, { align: 'right' });
+      y += 8;
+    }
+
+    // Total
+    doc.setFillColor(245, 240, 232);
+    doc.rect(10, y - 4, 128, 14, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(26, 26, 26);
+    doc.setFontSize(12);
+    doc.text('TOTAL PAGADO', 14, y + 4);
+    doc.text('$' + total.toLocaleString('es-CO'), 134, y + 4, { align: 'right' });
+    y += 22;
+
+    // Detalles pago
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(9);
+    doc.setTextColor(130, 130, 130);
+    doc.text('Método: ' + metodoPagoUsado, 14, y);
+    doc.text('Fecha: ' + new Date().toLocaleString('es-CO'), 14, y + 6);
+    doc.text('Ref: ' + (referenciaPago || 'N/A'), 14, y + 12);
+
+    // Pie
+    y += 28;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(180, 170, 150);
+    doc.text('¡Gracias por tu visita! Vuelve pronto.', 74, y, { align: 'center' });
+
+    doc.save('Factura_Mesa05_' + (referenciaPago || 'local') + '.pdf');
+  }
+</script>
+</body>
+</html>

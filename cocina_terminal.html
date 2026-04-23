@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cocina — El Sabor Colombiano</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface2: #1e1e1e;
+      --verde: #22c55e;
+      --amarillo: #f59e0b;
+      --rojo: #ef4444;
+      --azul: #3b82f6;
+      --texto: #f1f5f9;
+      --muted: #64748b;
+      --border: #2a2a2a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--texto);
+      min-height: 100vh;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .topbar-left h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .topbar-left p {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 1px;
+    }
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--verde);
+      animation: pulso 2s ease-in-out infinite;
+    }
+    .dot.offline { background: var(--rojo); animation: none; }
+    @keyframes pulso {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* STATS BAR */
+    .stats {
+      display: flex;
+      gap: 12px;
+      padding: 16px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .stat {
+      flex: 1;
+      background: var(--surface2);
+      border-radius: 10px;
+      padding: 12px 16px;
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 24px;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .stat-num.amarillo { color: var(--amarillo); }
+    .stat-num.verde { color: var(--verde); }
+    .stat-num.azul { color: var(--azul); }
+
+    /* FILTROS */
+    .filtros {
+      display: flex;
+      gap: 8px;
+      padding: 16px 24px 0;
+    }
+    .filtro-btn {
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filtro-btn.activo { background: var(--texto); color: var(--bg); border-color: var(--texto); }
+
+    /* GRID PEDIDOS */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      padding: 16px 24px 32px;
+    }
+
+    .pedido-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .pedido-card.nuevo { border-color: var(--amarillo); }
+    .pedido-card.preparando { border-color: var(--azul); }
+    .pedido-card.listo { border-color: var(--verde); opacity: 0.6; }
+
+    .card-header {
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-mesa {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .card-num { font-size: 12px; color: var(--muted); }
+    .card-hora { font-size: 12px; color: var(--muted); }
+
+    .estado-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .badge-nuevo { background: rgba(245,158,11,0.15); color: var(--amarillo); }
+    .badge-preparando { background: rgba(59,130,246,0.15); color: var(--azul); }
+    .badge-listo { background: rgba(34,197,94,0.15); color: var(--verde); }
+
+    .card-items {
+      padding: 14px 16px;
+      flex: 1;
+    }
+    .card-item {
+      font-size: 14px;
+      color: var(--texto);
+      padding: 4px 0;
+      border-bottom: 1px solid #1e1e1e;
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .card-item:last-child { border-bottom: none; }
+    .card-item-cant {
+      font-weight: 700;
+      color: var(--amarillo);
+      min-width: 18px;
+    }
+
+    .card-notas {
+      margin: 8px 16px;
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--amarillo);
+    }
+    .card-notas::before { content: '⚠ '; }
+
+    .card-footer {
+      padding: 12px 16px;
+      display: flex;
+      gap: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .btn-accion {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn-accion:active { transform: scale(0.97); }
+    .btn-preparando { background: var(--azul); color: white; }
+    .btn-listo { background: var(--verde); color: white; }
+    .btn-eliminar { background: var(--surface2); color: var(--muted); flex: 0; padding: 10px 14px; }
+
+    /* TIEMPO */
+    .tiempo {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 0 16px 12px;
+    }
+    .tiempo.urgente { color: var(--rojo); font-weight: 600; }
+
+    /* ESTADO VACÍO */
+    .vacio {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--muted);
+    }
+    .vacio-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+    .vacio h3 { font-size: 18px; margin-bottom: 8px; color: var(--texto); opacity: 0.5; }
+
+    /* NOTIFICACIÓN */
+    .notif {
+      position: fixed;
+      top: 80px;
+      right: 24px;
+      background: var(--amarillo);
+      color: #1a1410;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      transform: translateX(120%);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 200;
+    }
+    .notif.show { transform: translateX(0); }
+
+    /* SONIDO TOGGLE */
+    .btn-sonido {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 18px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div class="notif" id="notif">🔔 ¡Pedido nuevo!</div>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <h1>Terminal Cocina</h1>
+    <p>El Sabor Colombiano</p>
+  </div>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <button class="btn-sonido" id="btn-sonido" onclick="toggleSonido()" title="Activar sonido">🔕</button>
+    <div class="status-dot">
+      <div class="dot" id="dot-status"></div>
+      <span id="txt-status">Conectado</span>
+    </div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat">
+    <div class="stat-num amarillo" id="stat-nuevos">0</div>
+    <div class="stat-label">Nuevos</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num azul" id="stat-prep">0</div>
+    <div class="stat-label">En prep.</div>
+  </div>
+  <div class="stat">
+    <div class="stat-num verde" id="stat-listos">0</div>
+    <div class="stat-label">Listos hoy</div>
+  </div>
+</div>
+
+<div class="filtros">
+  <button class="filtro-btn activo" onclick="filtrar('todos', this)">Todos</button>
+  <button class="filtro-btn" onclick="filtrar('nuevo', this)">Nuevos</button>
+  <button class="filtro-btn" onclick="filtrar('preparando', this)">En preparación</button>
+  <button class="filtro-btn" onclick="filtrar('listo', this)">Listos</button>
+</div>
+
+<div class="grid" id="grid-pedidos">
+  <div class="vacio">
+    <div class="vacio-icon">🍳</div>
+    <h3>Sin pedidos aún</h3>
+    <p>Los pedidos aparecerán aquí en tiempo real</p>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════
+   CONFIGURACIÓN — MISMO APPS SCRIPT URL
+   ══════════════════════════════════════════ */
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwblNVFnvonU2ogCloEKy0tR_wIqD--kRbpgX61ATGHr7KIqEWUlllrX5irOaZACgvgUg/exec';
+
+let pedidos = [];
+let filtroActivo = 'todos';
+let sonidoOn = false;
+let listosHoy = 0;
+let ultimoId = null;
+let audioCtx = null;
+
+/* ── SONIDO DE NOTIFICACIÓN ── */
+function toggleSonido() {
+  sonidoOn = !sonidoOn;
+  document.getElementById('btn-sonido').textContent = sonidoOn ? '🔔' : '🔕';
+  if (sonidoOn && !audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+function beep() {
+  if (!sonidoOn || !audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.frequency.value = 880;
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+  osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+}
+
+/* ── FETCH PEDIDOS ── */
+async function fetchPedidos() {
+  try {
+    const r = await fetch(APPS_SCRIPT_URL + '?accion=get_pedidos&t=' + Date.now());
+    if (!r.ok) throw new Error('Error');
+    const data = await r.json();
+    
+    // Detectar pedido nuevo
+    const ids = data.map(p => p.numero);
+    const hayNuevo = ultimoId && ids.some(id => !ultimoId.includes(id));
+    if (hayNuevo) { mostrarNotif(); beep(); }
+    ultimoId = ids;
+
+    pedidos = data;
+    actualizarStats();
+    render();
+    setOnline(true);
+  } catch (e) {
+    setOnline(false);
+  }
+}
+
+function setOnline(ok) {
+  document.getElementById('dot-status').className = 'dot' + (ok ? '' : ' offline');
+  document.getElementById('txt-status').textContent = ok ? 'Conectado' : 'Sin conexión';
+}
+
+function mostrarNotif() {
+  const n = document.getElementById('notif');
+  n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 3000);
+}
+
+/* ── ACCIONES ── */
+async function cambiarEstado(numero, nuevoEstado) {
+  // Optimista: cambiar local primero
+  const p = pedidos.find(p => p.numero == numero);
+  if (p) {
+    p.estado = nuevoEstado;
+    if (nuevoEstado === 'listo') listosHoy++;
+  }
+  actualizarStats();
+  render();
+
+  // Enviar a sheet
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accion: 'actualizar_estado', numero, estado: nuevoEstado }),
+    });
+  } catch (e) {}
+}
+
+async function eliminarPedido(numero) {
+  pedidos = pedidos.filter(p => p.numero != numero);
+  actualizarStats();
+  render();
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accion: 'eliminar', numero }),
+    });
+  } catch (e) {}
+}
+
+/* ── RENDER ── */
+function filtrar(f, btn) {
+  filtroActivo = f;
+  document.querySelectorAll('.filtro-btn').forEach(b => b.classList.remove('activo'));
+  btn.classList.add('activo');
+  render();
+}
+
+function tiempoTranscurrido(horaStr) {
+  // horaStr = "HH:MM"
+  const [h, m] = horaStr.split(':').map(Number);
+  const ahora = new Date();
+  const pedidoMin = h * 60 + m;
+  const ahoraMin = ahora.getHours() * 60 + ahora.getMinutes();
+  const diff = ahoraMin - pedidoMin;
+  if (diff < 0) return '< 1 min';
+  if (diff === 0) return 'Ahora';
+  return diff + ' min';
+}
+
+function urgente(horaStr) {
+  const [h, m] = horaStr.split(':').map(Number);
+  const ahora = new Date();
+  const diff = (ahora.getHours() * 60 + ahora.getMinutes()) - (h * 60 + m);
+  return diff >= 15;
+}
+
+function render() {
+  const mostrar = filtroActivo === 'todos' ? pedidos : pedidos.filter(p => p.estado === filtroActivo);
+  const grid = document.getElementById('grid-pedidos');
+
+  if (mostrar.length === 0) {
+    grid.innerHTML = `<div class="vacio"><div class="vacio-icon">🍳</div><h3>${filtroActivo === 'todos' ? 'Sin pedidos aún' : 'Sin pedidos en este estado'}</h3><p>Los pedidos aparecen aquí automáticamente</p></div>`;
+    return;
+  }
+
+  // Ordenar: nuevos primero, luego preparando, luego listos
+  const orden = { nuevo: 0, preparando: 1, listo: 2 };
+  mostrar.sort((a, b) => (orden[a.estado] || 0) - (orden[b.estado] || 0));
+
+  grid.innerHTML = mostrar.map(p => {
+    const badgeClass = { nuevo: 'badge-nuevo', preparando: 'badge-preparando', listo: 'badge-listo' }[p.estado];
+    const badgeTxt = { nuevo: 'Nuevo', preparando: 'Preparando', listo: 'Listo ✓' }[p.estado];
+    const esUrgente = p.estado !== 'listo' && urgente(p.hora);
+    const tiempo = tiempoTranscurrido(p.hora);
+
+    const itemsHtml = p.items.split(',').map(item => {
+      const m = item.trim().match(/^(\d+)x?\s*(.+)$/i);
+      return m
+        ? `<div class="card-item"><span class="card-item-cant">${m[1]}×</span>${m[2]}</div>`
+        : `<div class="card-item">${item.trim()}</div>`;
+    }).join('');
+
+    const botonesHtml = p.estado === 'nuevo'
+      ? `<button class="btn-accion btn-preparando" onclick="cambiarEstado(${p.numero}, 'preparando')">Preparando</button>
+         <button class="btn-accion btn-listo" onclick="cambiarEstado(${p.numero}, 'listo')">Listo ✓</button>`
+      : p.estado === 'preparando'
+      ? `<button class="btn-accion btn-listo" onclick="cambiarEstado(${p.numero}, 'listo')">Marcar listo ✓</button>`
+      : `<button class="btn-accion btn-eliminar" onclick="eliminarPedido(${p.numero})">Archivar</button>`;
+
+    return `
+      <div class="pedido-card ${p.estado}" id="card-${p.numero}">
+        <div class="card-header">
+          <div>
+            <div class="card-mesa">Mesa ${p.mesa}</div>
+            <div class="card-num">#${p.numero}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="estado-badge ${badgeClass}">${badgeTxt}</div>
+            <div class="card-hora">${p.hora}</div>
+          </div>
+        </div>
+        <div class="card-items">${itemsHtml}</div>
+        ${p.notas ? `<div class="card-notas">${p.notas}</div>` : ''}
+        <div class="tiempo ${esUrgente ? 'urgente' : ''}">
+          ${esUrgente ? '⚠ ' : ''}Hace ${tiempo}
+        </div>
+        <div class="card-footer">${botonesHtml}</div>
+      </div>`;
+  }).join('');
+}
+
+function actualizarStats() {
+  document.getElementById('stat-nuevos').textContent = pedidos.filter(p => p.estado === 'nuevo').length;
+  document.getElementById('stat-prep').textContent = pedidos.filter(p => p.estado === 'preparando').length;
+  document.getElementById('stat-listos').textContent = listosHoy;
+}
+
+/* ── DATOS DEMO (para cuando no hay Apps Script) ── */
+function cargarDemo() {
+  pedidos = [
+    { numero: 1001, mesa: '05', items: '1x Bandeja Paisa Especial, 2x Jugo de Mandarina', notas: 'sin cebolla', hora: new Date().toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'}), estado: 'nuevo', total: 49000 },
+    { numero: 1002, mesa: '03', items: '2x Ajiaco Bogotano, 1x Agua Panela', notas: '', hora: new Date(Date.now()-8*60000).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'}), estado: 'preparando', total: 61000 },
+    { numero: 1003, mesa: '07', items: '3x Empanadas, 2x Jugo de Lulo', notas: '', hora: new Date(Date.now()-20*60000).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'}), estado: 'listo', total: 41000 },
+  ];
+  ultimoId = pedidos.map(p => p.numero);
+  actualizarStats();
+  render();
+  setOnline(true);
+}
+
+/* ── INICIAR ── */
+if (APPS_SCRIPT_URL.includes('TU_URL_AQUI')) {
+  // Modo demo
+  cargarDemo();
+  setInterval(() => {}, 99999);
+} else {
+  fetchPedidos();
+  setInterval(fetchPedidos, 5000); // Actualizar cada 5 segundos
+}
+</script>
+</body>
+</html>
