@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Crepes & Waffles</title>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Jost:wght@300;400;500&display=swap');
+
+    :root {
+      --bg:        #0e0c0a;
+      --surface:   #161412;
+      --surface2:  #1e1b18;
+      --border:    #2a2520;
+      --verde:     #4a7c59;
+      --verde-luz: #6aad7e;
+      --crema:     #f0e6d2;
+      --crema2:    #c8b99a;
+      --muted:     #7a6e62;
+      --danger:    #c0392b;
+      --radius:    12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Jost', sans-serif;
+      background: var(--bg);
+      color: var(--crema);
+      min-height: 100vh;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: var(--surface);
+      padding: 36px 24px 22px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+    .hero-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .logo-wrap h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 28px;
+      font-weight: 600;
+      line-height: 1.05;
+      color: var(--crema);
+      letter-spacing: 0.01em;
+    }
+    .logo-wrap h1 em {
+      font-style: italic;
+      font-weight: 400;
+      color: var(--crema2);
+    }
+    .logo-wrap p {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+    .mesa-pill {
+      background: var(--verde);
+      color: var(--crema);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      padding: 5px 12px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    /* ── CATEGORÍAS ── */
+    .cats {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+    }
+    .cats::-webkit-scrollbar { display: none; }
+    .cat-btn {
+      flex-shrink: 0;
+      padding: 6px 13px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      font-family: 'Jost', sans-serif;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: all 0.18s;
+      white-space: nowrap;
+    }
+    .cat-btn.activa {
+      background: var(--verde);
+      border-color: var(--verde);
+      color: var(--crema);
+      font-weight: 500;
+    }
+
+    /* ── SECCIÓN ── */
+    .seccion-titulo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-style: italic;
+      color: var(--crema2);
+      padding: 22px 20px 10px;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── CARDS DE PRODUCTO ── */
+    .productos { padding: 0 14px; display: flex; flex-direction: column; gap: 8px; }
+
+    .prod-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: border-color 0.2s;
+    }
+    .prod-card:hover { border-color: #3a3228; }
+
+    .prod-info { flex: 1; min-width: 0; }
+    .prod-nombre {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--crema);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .prod-desc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .prod-precio {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 16px;
+      color: var(--crema2);
+      margin-top: 4px;
+    }
+
+    .prod-acciones { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .btn-cant {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--crema);
+      font-size: 17px;
+      font-family: 'Jost', sans-serif;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+      line-height: 1;
+    }
+    .btn-cant:active { background: #2a2520; }
+    .cant-num {
+      font-size: 14px; font-weight: 500;
+      min-width: 16px; text-align: center;
+      color: var(--crema);
+    }
+    .cant-num.activo { color: var(--verde-luz); }
+
+    /* ── BARRA CARRITO ── */
+    .carrito-bar {
+      position: sticky; bottom: 0;
+      padding: 10px 14px 22px;
+      background: linear-gradient(to top, var(--bg) 75%, transparent);
+      z-index: 60;
+    }
+    .btn-carrito {
+      width: 100%;
+      background: var(--verde);
+      color: var(--crema);
+      border: none; border-radius: var(--radius);
+      padding: 15px 18px;
+      font-size: 14px; font-weight: 500;
+      font-family: 'Jost', sans-serif;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.04em;
+    }
+    .btn-carrito:active { transform: scale(0.98); background: #3d6b4a; }
+    .btn-carrito.oculto { display: none; }
+    .carrito-badge {
+      background: rgba(0,0,0,0.25);
+      border-radius: 100px;
+      padding: 3px 10px;
+      font-size: 12px;
+    }
+
+    /* ── MODAL ── */
+    .modal-bg {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      z-index: 100;
+      align-items: flex-end; justify-content: center;
+    }
+    .modal-bg.visible { display: flex; }
+    .modal {
+      background: var(--surface);
+      width: 100%; max-width: 480px;
+      border-radius: 20px 20px 0 0;
+      padding: 20px 20px 32px;
+      max-height: 88vh; overflow-y: auto;
+    }
+    .modal-handle {
+      width: 36px; height: 3px;
+      background: var(--border);
+      border-radius: 2px; margin: 0 auto 20px;
+    }
+    .modal-titulo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px; font-style: italic;
+      color: var(--crema); margin-bottom: 16px;
+    }
+
+    /* tag adición */
+    .tag-adicion {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(74,124,89,0.12);
+      border: 1px solid rgba(74,124,89,0.3);
+      border-radius: 8px; padding: 9px 12px;
+      margin-bottom: 14px; font-size: 12px;
+      color: var(--verde-luz);
+    }
+    .tag-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--verde-luz); flex-shrink: 0; }
+
+    .item-carrito {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 11px 0; border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .item-carrito:last-of-type { border-bottom: none; }
+    .item-nombre { color: var(--crema); flex: 1; }
+    .item-precio { color: var(--crema2); font-family: 'Cormorant Garamond', serif; font-size: 15px; margin-left: 12px; }
+    .item-del {
+      background: none; border: none; color: var(--muted);
+      font-size: 18px; cursor: pointer; padding: 0 0 0 10px;
+      transition: color 0.15s; line-height: 1;
+    }
+    .item-del:hover { color: var(--danger); }
+
+    /* campos */
+    .campo { margin-top: 14px; }
+    .campo label {
+      display: block; font-size: 10px; font-weight: 500;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--muted); margin-bottom: 6px;
+    }
+    .campo input, .campo textarea {
+      width: 100%;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 11px 13px;
+      font-size: 14px; font-family: 'Jost', sans-serif;
+      color: var(--crema); outline: none; resize: none;
+      transition: border-color 0.15s;
+    }
+    .campo input:focus, .campo textarea:focus { border-color: var(--verde); }
+
+    .total-fila {
+      display: flex; justify-content: space-between; align-items: baseline;
+      padding: 14px 0 16px; border-top: 1px solid var(--border); margin-top: 10px;
+    }
+    .total-fila span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .total-fila strong { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--crema); }
+
+    .btn-confirmar {
+      width: 100%; background: var(--verde); color: var(--crema);
+      border: none; border-radius: var(--radius); padding: 15px;
+      font-size: 14px; font-weight: 500; letter-spacing: 0.06em;
+      font-family: 'Jost', sans-serif; cursor: pointer;
+      transition: transform 0.1s, background 0.15s;
+    }
+    .btn-confirmar:active { transform: scale(0.98); background: #3d6b4a; }
+
+    .btn-cancelar {
+      width: 100%; background: transparent;
+      border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 13px; font-size: 13px; color: var(--muted);
+      font-family: 'Jost', sans-serif; cursor: pointer; margin-top: 8px;
+    }
+
+    /* ── PANTALLA ÉXITO ── */
+    #pantalla-exito {
+      display: none; min-height: 100vh;
+      align-items: center; justify-content: center;
+      flex-direction: column; padding: 48px 28px;
+      text-align: center;
+    }
+    #pantalla-exito.visible { display: flex; }
+
+    .exito-icono {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: var(--verde); display: flex;
+      align-items: center; justify-content: center;
+      font-size: 32px; margin: 0 auto 22px;
+      animation: pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
+    }
+    @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+
+    .exito-titulo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 30px; font-style: italic;
+      color: var(--crema); margin-bottom: 8px;
+    }
+    .exito-sub { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+    .num-pedido {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 18px 32px;
+      margin: 22px 0;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 36px; color: var(--crema2);
+      letter-spacing: 0.04em;
+    }
+
+    .btn-pedir-mas {
+      width: 100%; background: transparent;
+      border: 1.5px solid var(--verde); color: var(--verde-luz);
+      border-radius: var(--radius); padding: 14px;
+      font-size: 14px; font-weight: 500; letter-spacing: 0.04em;
+      font-family: 'Jost', sans-serif; cursor: pointer;
+      margin-top: 12px; transition: background 0.15s, transform 0.1s;
+    }
+    .btn-pedir-mas:active { transform: scale(0.98); background: rgba(74,124,89,0.1); }
+
+    .spacer { height: 100px; }
+  </style>
+</head>
+<body>
+
+<!-- ══ PANTALLA MENÚ ══ -->
+<div id="pantalla-menu">
+  <div class="hero">
+    <div class="hero-top">
+      <div class="logo-wrap">
+        <h1>Crepes <em>&</em> Waffles</h1>
+        <p>Desde 1980 · Bogotá, Colombia</p>
+      </div>
+      <div class="mesa-pill" id="mesa-pill">Mesa 01</div>
+    </div>
+    <div class="cats" id="cats-bar">
+      <button class="cat-btn activa" onclick="filtrar('todos',this)">Todo</button>
+      <button class="cat-btn" onclick="filtrar('crepes-sal',this)">Crepes salados</button>
+      <button class="cat-btn" onclick="filtrar('crepes-veg',this)">Vegetarianos</button>
+      <button class="cat-btn" onclick="filtrar('crepes-mar',this)">De mar</button>
+      <button class="cat-btn" onclick="filtrar('ensaladas',this)">Ensaladas</button>
+      <button class="cat-btn" onclick="filtrar('waffles',this)">Waffles</button>
+      <button class="cat-btn" onclick="filtrar('crepes-dul',this)">Dulces</button>
+      <button class="cat-btn" onclick="filtrar('bebidas',this)">Bebidas</button>
+    </div>
+  </div>
+
+  <div id="lista-productos"></div>
+  <div class="spacer"></div>
+</div>
+
+<!-- barra carrito -->
+<div class="carrito-bar" id="barra-carrito">
+  <button class="btn-carrito oculto" id="btn-carrito" onclick="abrirModal()">
+    <span>Ver pedido</span>
+    <span class="carrito-badge" id="carrito-badge">0</span>
+  </button>
+</div>
+
+<!-- ══ MODAL CARRITO ══ -->
+<div class="modal-bg" id="modal-carrito">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-titulo">Tu pedido</div>
+    <div id="lista-modal"></div>
+
+    <div class="campo">
+      <label>Mesa</label>
+      <input type="text" id="inp-mesa" placeholder="Ej: 05" value="01">
+    </div>
+    <div class="campo">
+      <label>Nota para cocina (opcional)</label>
+      <textarea id="inp-notas" rows="2" placeholder="Sin gluten, sin cebolla…"></textarea>
+    </div>
+
+    <div class="total-fila">
+      <span>Total</span>
+      <strong id="total-modal">$0</strong>
+    </div>
+
+    <button class="btn-confirmar" onclick="enviarPedido()">Enviar a cocina</button>
+    <button class="btn-cancelar" onclick="cerrarModal()">Seguir mirando</button>
+  </div>
+</div>
+
+<!-- ══ PANTALLA ÉXITO ══ -->
+<div id="pantalla-exito">
+  <div class="exito-icono">✓</div>
+  <div class="exito-titulo">¡Pedido enviado!</div>
+  <p class="exito-sub">Tu número de pedido es</p>
+  <div class="num-pedido" id="num-pedido">#0000</div>
+  <p class="exito-sub">Cocina ya lo recibió.<br>Pronto estará en tu mesa.</p>
+  <button class="btn-pedir-mas" onclick="pedirMas()">+ Quiero pedir algo más</button>
+</div>
+
+<script>
+/* ══════════════════════
+   CONFIGURACIÓN
+   ══════════════════════ */
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwSSG6saF5SMOeDCTHk4KF9yJL8MSmYPTjBfkafEYak1kqyEZ408QIJU1B-5NIigFqGxQ/exec';
+
+/* ══ MENÚ REAL C&W ══ */
+const MENU = [
+  // CREPES SALADOS
+  { id:1,  cat:'crepes-sal', nombre:'Sensación Colombia',   desc:'Carne desmechada, hogao, huevo, crema agria', precio:26700 },
+  { id:2,  cat:'crepes-sal', nombre:'Jamón y Queso',        desc:'Jamón ahumado, queso y huevo. El clásico',    precio:20900 },
+  { id:3,  cat:'crepes-sal', nombre:'Mexicano',             desc:'Boloñesa, queso, lechuga, crema agria, ají',  precio:25500 },
+  { id:4,  cat:'crepes-sal', nombre:'Cochinita Pibil',      desc:'Cerdo desmechado, cítricos, aguacate',        precio:24500 },
+  { id:5,  cat:'crepes-sal', nombre:'Sombrero Vueltiao',    desc:'Carne, hogao, puré de plátano, crema agria',  precio:26700 },
+  { id:6,  cat:'crepes-sal', nombre:'Ternera y Champiñones',desc:'Ternera en salsa, champiñones frescos',       precio:24800 },
+  // VEGETARIANOS
+  { id:7,  cat:'crepes-veg', nombre:'Poblana',              desc:'Aguacate, queso, pico de gallo, salsa agria', precio:21900 },
+  { id:8,  cat:'crepes-veg', nombre:'Toscana',              desc:'Queso, tomate, albahaca, champiñones',        precio:21900 },
+  { id:9,  cat:'crepes-veg', nombre:'Champiñones al Ajillo',desc:'Champiñones en salsa ajillo con queso',       precio:19900 },
+  { id:10, cat:'crepes-veg', nombre:'Normanda',             desc:'Champiñones, variedad de quesos',             precio:20900 },
+  // DE MAR
+  { id:11, cat:'crepes-mar', nombre:'Camarones',            desc:'Al curry, al ajillo o marco polo',            precio:36900 },
+  { id:12, cat:'crepes-mar', nombre:'Palmitos',             desc:'Al curry, al ajillo o salsa de la casa',      precio:27900 },
+  { id:13, cat:'crepes-mar', nombre:'Calamares',            desc:'Al curry, al ajillo o marco polo',            precio:28900 },
+  // ENSALADAS
+  { id:14, cat:'ensaladas',  nombre:'César con Salmón',     desc:'Lechuga, crutones, tomate cherry, pan centeno',precio:29500 },
+  { id:15, cat:'ensaladas',  nombre:'César con Pollo',      desc:'Clásica ensalada César con pan de centeno',   precio:17200 },
+  { id:16, cat:'ensaladas',  nombre:'Tuna Salad',           desc:'Atún ventresca, aguacate, champiñones',       precio:29800 },
+  { id:17, cat:'ensaladas',  nombre:'Darina',               desc:'Frutos secos, queso, vinagreta especial',     precio:18500 },
+  // WAFFLES
+  { id:18, cat:'waffles',    nombre:'Waffle Tradicional',   desc:'Mantequilla, syrup y huevo frito',            precio:9900  },
+  { id:19, cat:'waffles',    nombre:'Waffle con Tocineta',  desc:'Mantequilla, syrup, huevo frito y tocineta',  precio:10900 },
+  { id:20, cat:'waffles',    nombre:'Waffle de Maíz',       desc:'Especial de la casa',                         precio:9900  },
+  { id:21, cat:'waffles',    nombre:'Copa de Yogur Natural',desc:'Granola artesanal, copos de guanábana',       precio:14600 },
+  // CREPES DULCES
+  { id:22, cat:'crepes-dul', nombre:'Mont Blanc',           desc:'Chocolate blanco, fresas, crema chantilly',   precio:15600 },
+  { id:23, cat:'crepes-dul', nombre:'Cleopatra',            desc:'Banano, fresa, helado mora, chantilly',       precio:12000 },
+  { id:24, cat:'crepes-dul', nombre:'Frutos del Bosque',    desc:'Frutos rojos, helado vainilla, ticrema',      precio:9600  },
+  { id:25, cat:'crepes-dul', nombre:'Chocolate Fondue',     desc:'Sobre fresas y banano, helado vainilla',      precio:17500 },
+  { id:26, cat:'crepes-dul', nombre:'Nutella y Banano',     desc:'El favorito de siempre',                      precio:15100 },
+  // BEBIDAS
+  { id:27, cat:'bebidas',    nombre:'Café Cappuccino',      desc:'100% colombiano, tostado diario',             precio:4900  },
+  { id:28, cat:'bebidas',    nombre:'Café Latte',           desc:'Excelso colombiano con leche vaporizada',     precio:5000  },
+  { id:29, cat:'bebidas',    nombre:'Chocolateada',         desc:'Cacao Tumaco 70%',                            precio:5900  },
+  { id:30, cat:'bebidas',    nombre:'Malteada',             desc:'Helado artesanal batido',                     precio:9900  },
+  { id:31, cat:'bebidas',    nombre:'Jugo Natural',         desc:'Lulo, maracuyá, mora o naranja',              precio:7500  },
+  { id:32, cat:'bebidas',    nombre:'Soda de Frambuesa',    desc:'Refrescante y especial',                      precio:10000 },
+];
+
+const NOMBRES_CAT = {
+  'crepes-sal': 'Crepes salados',
+  'crepes-veg': 'Crepes vegetarianos',
+  'crepes-mar': 'Crepes de mar',
+  'ensaladas':  'Ensaladas',
+  'waffles':    'Waffles & Pancakes',
+  'crepes-dul': 'Crepes dulces',
+  'bebidas':    'Bebidas',
+};
+
+let carrito = {};
+let catActiva = 'todos';
+let pedidoOriginal = null;
+
+/* ── RENDER ── */
+function renderProductos() {
+  const lista = catActiva === 'todos' ? MENU : MENU.filter(p => p.cat === catActiva);
+  const cats = [...new Set(lista.map(p => p.cat))];
+  let html = '';
+  cats.forEach(cat => {
+    const items = lista.filter(p => p.cat === cat);
+    html += `<div class="seccion-titulo">${NOMBRES_CAT[cat]}</div><div class="productos">`;
+    items.forEach(p => {
+      const c = carrito[p.id]?.cant || 0;
+      html += `<div class="prod-card">
+        <div class="prod-info">
+          <div class="prod-nombre">${p.nombre}</div>
+          <div class="prod-desc">${p.desc}</div>
+          <div class="prod-precio">$${p.precio.toLocaleString('es-CO')}</div>
+        </div>
+        <div class="prod-acciones">
+          <button class="btn-cant" onclick="cambiar(${p.id},-1)">−</button>
+          <span class="cant-num${c>0?' activo':''}">${c}</span>
+          <button class="btn-cant" onclick="cambiar(${p.id},1)">+</button>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  });
+  document.getElementById('lista-productos').innerHTML = html;
+}
+
+function filtrar(cat, btn) {
+  catActiva = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('activa'));
+  btn.classList.add('activa');
+  renderProductos();
+}
+
+function cambiar(id, d) {
+  const p = MENU.find(x => x.id === id);
+  if (!carrito[id]) carrito[id] = { ...p, cant: 0 };
+  carrito[id].cant = Math.max(0, carrito[id].cant + d);
+  if (carrito[id].cant === 0) delete carrito[id];
+  actualizarBarra();
+  renderProductos();
+}
+
+function actualizarBarra() {
+  const items = Object.values(carrito);
+  const n = items.reduce((s,i) => s + i.cant, 0);
+  const total = items.reduce((s,i) => s + i.precio * i.cant, 0);
+  const btn = document.getElementById('btn-carrito');
+  document.getElementById('carrito-badge').textContent =
+    `${n} ${n===1?'ítem':'ítems'} · $${total.toLocaleString('es-CO')}`;
+  btn.classList.toggle('oculto', n === 0);
+}
+
+/* ── MODAL ── */
+function abrirModal() {
+  const items = Object.values(carrito);
+  const total = items.reduce((s,i) => s + i.precio * i.cant, 0);
+  let html = '';
+  if (pedidoOriginal) {
+    html += `<div class="tag-adicion">
+      <div class="tag-dot"></div>
+      <span>Adición al pedido <strong>#${pedidoOriginal}</strong> — llegará marcada a cocina</span>
+    </div>`;
+  }
+  items.forEach(i => {
+    html += `<div class="item-carrito">
+      <span class="item-nombre">${i.cant}× ${i.nombre}</span>
+      <span class="item-precio">$${(i.precio*i.cant).toLocaleString('es-CO')}</span>
+      <button class="item-del" onclick="quitarItem(${i.id})">×</button>
+    </div>`;
+  });
+  document.getElementById('lista-modal').innerHTML = html;
+  document.getElementById('total-modal').textContent = '$' + total.toLocaleString('es-CO');
+  document.getElementById('modal-carrito').classList.add('visible');
+}
+
+function cerrarModal() {
+  document.getElementById('modal-carrito').classList.remove('visible');
+}
+
+function quitarItem(id) {
+  delete carrito[id];
+  actualizarBarra();
+  abrirModal();
+  renderProductos();
+}
+
+/* ── ENVIAR ── */
+async function enviarPedido() {
+  const items = Object.values(carrito);
+  if (!items.length) return;
+
+  const mesa  = document.getElementById('inp-mesa').value || '?';
+  const notas = document.getElementById('inp-notas').value;
+  const total = items.reduce((s,i) => s + i.precio * i.cant, 0);
+  const num   = Math.floor(Math.random() * 9000) + 1000;
+  const resumen = items.map(i => `${i.cant}x ${i.nombre}`).join(', ');
+  const notaFinal = pedidoOriginal
+    ? `[Adición al #${pedidoOriginal}]${notas ? ' · ' + notas : ''}`
+    : notas;
+
+  const payload = {
+    accion: 'nuevo_pedido', numero: num, mesa,
+    items: resumen, total, notas: notaFinal,
+    hora: new Date().toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'}),
+  };
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+  } catch(e) {}
+
+  if (!pedidoOriginal) pedidoOriginal = num;
+
+  cerrarModal();
+  document.getElementById('pantalla-menu').style.display = 'none';
+  document.getElementById('barra-carrito').style.display = 'none';
+  document.getElementById('num-pedido').textContent = '#' + num;
+  document.getElementById('pantalla-exito').classList.add('visible');
+}
+
+/* ── PEDIR MÁS ── */
+function pedirMas() {
+  carrito = {};
+  document.getElementById('pantalla-exito').classList.remove('visible');
+  document.getElementById('pantalla-menu').style.display = 'block';
+  document.getElementById('barra-carrito').style.display = 'block';
+  actualizarBarra();
+  renderProductos();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+/* URL params */
+const P = new URLSearchParams(window.location.search);
+const mesaP = P.get('mesa');
+if (mesaP) {
+  document.getElementById('mesa-pill').textContent = 'Mesa ' + mesaP;
+  document.getElementById('inp-mesa').value = mesaP;
+}
+
+renderProductos();
+</script>
+</body>
+</html>

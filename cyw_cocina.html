@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cocina · Crepes & Waffles</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,400&family=Jost:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg:      #090807;
+      --s1:      #111009;
+      --s2:      #1a1815;
+      --border:  #252220;
+      --verde:   #4a7c59;
+      --vl:      #6aad7e;
+      --crema:   #f0e6d2;
+      --crema2:  #c8b99a;
+      --muted:   #6b6057;
+      --nuevo:   #d4a017;
+      --prep:    #3b82f6;
+      --listo:   #4a7c59;
+      --danger:  #c0392b;
+    }
+
+    * { box-sizing:border-box; margin:0; padding:0; }
+
+    body {
+      font-family: 'Jost', sans-serif;
+      background: var(--bg);
+      color: var(--crema);
+      min-height: 100vh;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      background: var(--s1);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top:0; z-index:50;
+    }
+    .topbar-marca {
+      display: flex; flex-direction: column;
+    }
+    .topbar-marca h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 18px; font-weight: 600;
+      color: var(--crema); letter-spacing: 0.01em;
+    }
+    .topbar-marca h1 em { font-style: italic; font-weight: 400; color: var(--crema2); }
+    .topbar-sub { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1px; }
+
+    .topbar-right { display: flex; align-items: center; gap: 12px; }
+    .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--vl); animation: pulso 2s ease-in-out infinite; }
+    .status-dot.off { background: var(--danger); animation: none; }
+    @keyframes pulso { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+    .btn-sonido {
+      background: var(--s2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--muted); font-size: 16px;
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+    }
+
+    /* ── STATS ── */
+    .stats {
+      display: flex; gap: 10px;
+      padding: 14px 20px;
+      background: var(--s1); border-bottom: 1px solid var(--border);
+    }
+    .stat {
+      flex: 1; background: var(--s2); border-radius: 10px;
+      padding: 12px 14px; text-align: center;
+    }
+    .stat-n { font-size: 26px; font-weight: 700; line-height: 1; }
+    .stat-l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 3px; }
+    .c-nuevo  { color: var(--nuevo); }
+    .c-prep   { color: var(--prep);  }
+    .c-listo  { color: var(--vl);    }
+
+    /* ── FILTROS ── */
+    .filtros { display: flex; gap: 8px; padding: 14px 20px 0; flex-wrap: wrap; }
+    .f-btn {
+      padding: 6px 14px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent; color: var(--muted);
+      font-size: 12px; font-family: 'Jost', sans-serif; font-weight: 500;
+      cursor: pointer; transition: all .15s; letter-spacing: 0.04em;
+    }
+    .f-btn.activo { background: var(--crema); color: var(--bg); border-color: var(--crema); }
+
+    /* ── GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 14px; padding: 14px 20px 40px;
+    }
+
+    /* ── CARD PEDIDO ── */
+    .card {
+      background: var(--s1); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      display: flex; flex-direction: column;
+      animation: slideIn .3s ease;
+    }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+
+    .card.nuevo    { border-left: 3px solid var(--nuevo); }
+    .card.preparando { border-left: 3px solid var(--prep); }
+    .card.listo    { border-left: 3px solid var(--vl); opacity: .55; }
+
+    .card-head {
+      padding: 13px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-mesa {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px; font-weight: 600;
+    }
+    .card-num { font-size: 11px; color: var(--muted); }
+    .card-hora { font-size: 11px; color: var(--muted); }
+
+    .badge {
+      display: inline-block; padding: 3px 9px; border-radius: 100px;
+      font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    }
+    .b-nuevo    { background: rgba(212,160,23,.15); color: var(--nuevo); }
+    .b-prep     { background: rgba(59,130,246,.15);  color: var(--prep);  }
+    .b-listo    { background: rgba(74,124,89,.15);   color: var(--vl);   }
+
+    .card-items { padding: 13px 16px; flex: 1; }
+    .card-item {
+      font-size: 13px; color: var(--crema);
+      padding: 4px 0; border-bottom: 1px solid #1a1815;
+      display: flex; gap: 8px; align-items: baseline;
+    }
+    .card-item:last-child { border-bottom: none; }
+    .ci-cant { font-weight: 700; color: var(--nuevo); min-width: 20px; }
+
+    .card-notas {
+      margin: 0 14px 10px;
+      background: rgba(212,160,23,.08);
+      border: 1px solid rgba(212,160,23,.2);
+      border-radius: 8px; padding: 7px 10px;
+      font-size: 12px; color: var(--nuevo);
+      line-height: 1.4;
+    }
+
+    .card-adicion {
+      margin: 0 14px 10px;
+      background: rgba(74,124,89,.1);
+      border: 1px solid rgba(74,124,89,.25);
+      border-radius: 8px; padding: 7px 10px;
+      font-size: 12px; color: var(--vl);
+    }
+
+    .card-tiempo {
+      padding: 0 16px 10px;
+      font-size: 11px; color: var(--muted);
+    }
+    .card-tiempo.urgente { color: var(--danger); font-weight: 600; }
+
+    .card-footer {
+      padding: 10px 14px; display: flex; gap: 7px;
+      border-top: 1px solid var(--border);
+    }
+    .btn-acc {
+      flex: 1; padding: 9px; border-radius: 8px; border: none;
+      font-size: 12px; font-weight: 600; letter-spacing: .04em;
+      font-family: 'Jost', sans-serif; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-acc:active { transform: scale(.97); }
+    .btn-prep  { background: var(--prep);  color: white; }
+    .btn-listo { background: var(--vl);    color: white; }
+    .btn-arc   { background: var(--s2);    color: var(--muted); flex: 0; padding: 9px 13px; }
+
+    /* ── VACÍO ── */
+    .vacio {
+      grid-column: 1/-1; text-align: center;
+      padding: 80px 20px; color: var(--muted);
+    }
+    .vacio-t {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 22px; font-style: italic;
+      color: var(--crema2); margin-bottom: 8px; opacity: .5;
+    }
+    .vacio-s { font-size: 13px; }
+
+    /* ── NOTIF ── */
+    .notif {
+      position: fixed; top: 74px; right: 20px;
+      background: var(--nuevo); color: #1a1410;
+      padding: 10px 18px; border-radius: 10px;
+      font-size: 13px; font-weight: 700;
+      transform: translateX(120%);
+      transition: transform .3s cubic-bezier(.175,.885,.32,1.275);
+      z-index: 200;
+    }
+    .notif.show { transform: translateX(0); }
+  </style>
+</head>
+<body>
+
+<div class="notif" id="notif">Pedido nuevo</div>
+
+<div class="topbar">
+  <div class="topbar-marca">
+    <h1>Crepes <em>&</em> Waffles</h1>
+    <span class="topbar-sub">Terminal de cocina</span>
+  </div>
+  <div class="topbar-right">
+    <button class="btn-sonido" id="btn-sonido" onclick="toggleSonido()" title="Sonido">🔕</button>
+    <div class="status">
+      <div class="status-dot" id="dot"></div>
+      <span id="txt-status">Conectado</span>
+    </div>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-n c-nuevo" id="s-nuevo">0</div><div class="stat-l">Nuevos</div></div>
+  <div class="stat"><div class="stat-n c-prep"  id="s-prep">0</div><div class="stat-l">En prep.</div></div>
+  <div class="stat"><div class="stat-n c-listo" id="s-listo">0</div><div class="stat-l">Listos hoy</div></div>
+</div>
+
+<div class="filtros">
+  <button class="f-btn activo" onclick="filtrar('todos',this)">Todos</button>
+  <button class="f-btn" onclick="filtrar('nuevo',this)">Nuevos</button>
+  <button class="f-btn" onclick="filtrar('preparando',this)">Preparando</button>
+  <button class="f-btn" onclick="filtrar('listo',this)">Listos</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwSSG6saF5SMOeDCTHk4KF9yJL8MSmYPTjBfkafEYak1kqyEZ408QIJU1B-5NIigFqGxQ/exec';
+
+let pedidos = [];
+let filtroActivo = 'todos';
+let sonidoOn = false;
+let audioCtx = null;
+let idsVistos = null;
+let listosHoy = 0;
+
+/* sonido */
+function toggleSonido() {
+  sonidoOn = !sonidoOn;
+  document.getElementById('btn-sonido').textContent = sonidoOn ? '🔔' : '🔕';
+  if (sonidoOn && !audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+}
+function beep() {
+  if (!sonidoOn||!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.frequency.value = 880;
+  g.gain.setValueAtTime(.3, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime+.4);
+  o.start(); o.stop(audioCtx.currentTime+.4);
+}
+
+/* fetch */
+async function fetchPedidos() {
+  try {
+    const r = await fetch(SCRIPT_URL + '?accion=get_pedidos&t=' + Date.now());
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const ids = data.map(p => p.numero+'');
+    if (idsVistos && ids.some(id => !idsVistos.includes(id))) { mostrarNotif(); beep(); }
+    idsVistos = ids;
+    pedidos = data;
+    renderStats();
+    renderGrid();
+    setOnline(true);
+  } catch(e) { setOnline(false); }
+}
+
+function setOnline(ok) {
+  document.getElementById('dot').className = 'status-dot' + (ok?'':' off');
+  document.getElementById('txt-status').textContent = ok ? 'Conectado' : 'Sin conexión';
+}
+
+function mostrarNotif() {
+  const n = document.getElementById('notif');
+  n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 3500);
+}
+
+/* acciones */
+async function cambiarEstado(num, estado) {
+  const p = pedidos.find(x => x.numero == num);
+  if (p) {
+    p.estado = estado;
+    if (estado === 'listo') listosHoy++;
+  }
+  renderStats(); renderGrid();
+  try {
+    await fetch(SCRIPT_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({accion:'actualizar_estado', numero:num, estado}),
+    });
+  } catch(e){}
+}
+
+async function archivar(num) {
+  pedidos = pedidos.filter(p => p.numero != num);
+  renderStats(); renderGrid();
+  try {
+    await fetch(SCRIPT_URL, {
+      method:'POST', mode:'no-cors',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({accion:'eliminar', numero:num}),
+    });
+  } catch(e){}
+}
+
+/* render */
+function filtrar(f, btn) {
+  filtroActivo = f;
+  document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('activo'));
+  btn.classList.add('activo');
+  renderGrid();
+}
+
+function minutos(hora) {
+  const [h,m] = hora.split(':').map(Number);
+  const ahora = new Date();
+  return (ahora.getHours()*60 + ahora.getMinutes()) - (h*60 + m);
+}
+
+function renderStats() {
+  document.getElementById('s-nuevo').textContent = pedidos.filter(p => p.estado==='nuevo').length;
+  document.getElementById('s-prep').textContent  = pedidos.filter(p => p.estado==='preparando').length;
+  document.getElementById('s-listo').textContent = listosHoy;
+}
+
+function renderGrid() {
+  const mostrar = filtroActivo === 'todos' ? pedidos : pedidos.filter(p => p.estado === filtroActivo);
+  const orden = {nuevo:0, preparando:1, listo:2};
+  mostrar.sort((a,b) => (orden[a.estado]||0) - (orden[b.estado]||0));
+  const grid = document.getElementById('grid');
+
+  if (!mostrar.length) {
+    grid.innerHTML = `<div class="vacio">
+      <div class="vacio-t">Sin pedidos</div>
+      <div class="vacio-s">Los pedidos aparecen aquí en tiempo real</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = mostrar.map(p => {
+    const bc = {nuevo:'b-nuevo', preparando:'b-prep', listo:'b-listo'}[p.estado];
+    const bt = {nuevo:'Nuevo', preparando:'Preparando', listo:'Listo ✓'}[p.estado];
+    const mins = minutos(p.hora);
+    const urg = p.estado !== 'listo' && mins >= 15;
+    const esAdicion = p.notas && p.notas.includes('[Adición al #');
+    const notaLimpia = p.notas ? p.notas.replace(/\[Adición al #\d+\]\s*·?\s*/,'').trim() : '';
+
+    const itemsHtml = (p.items||'').split(',').map(it => {
+      const m = it.trim().match(/^(\d+)x?\s+(.+)$/i);
+      return m
+        ? `<div class="card-item"><span class="ci-cant">${m[1]}×</span>${m[2]}</div>`
+        : `<div class="card-item">${it.trim()}</div>`;
+    }).join('');
+
+    const adicionMatch = p.notas && p.notas.match(/\[Adición al (#\d+)\]/);
+    const adicionHtml = adicionMatch
+      ? `<div class="card-adicion">↳ Adición al pedido ${adicionMatch[1]}</div>` : '';
+
+    const notaHtml = notaLimpia
+      ? `<div class="card-notas">⚠ ${notaLimpia}</div>` : '';
+
+    const botones = p.estado === 'nuevo'
+      ? `<button class="btn-acc btn-prep"  onclick="cambiarEstado(${p.numero},'preparando')">Preparando</button>
+         <button class="btn-acc btn-listo" onclick="cambiarEstado(${p.numero},'listo')">Listo ✓</button>`
+      : p.estado === 'preparando'
+      ? `<button class="btn-acc btn-listo" onclick="cambiarEstado(${p.numero},'listo')">Marcar listo ✓</button>`
+      : `<button class="btn-acc btn-arc"   onclick="archivar(${p.numero})">Archivar</button>`;
+
+    return `<div class="card ${p.estado}">
+      <div class="card-head">
+        <div>
+          <div class="card-mesa">Mesa ${p.mesa}</div>
+          <div class="card-num">#${p.numero}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="badge ${bc}">${bt}</div>
+          <div class="card-hora">${p.hora}</div>
+        </div>
+      </div>
+      <div class="card-items">${itemsHtml}</div>
+      ${adicionHtml}
+      ${notaHtml}
+      <div class="card-tiempo ${urg?'urgente':''}">
+        ${urg ? '⚠ ' : ''}${mins <= 0 ? 'Ahora mismo' : 'Hace ' + mins + ' min'}
+      </div>
+      <div class="card-footer">${botones}</div>
+    </div>`;
+  }).join('');
+}
+
+/* demo si no hay URL */
+function demo() {
+  const h = n => { const d=new Date(Date.now()-n*60000); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); };
+  pedidos = [
+    {numero:1001, mesa:'03', items:'2x Sensación Colombia, 1x Jugo Natural', notas:'sin cebolla', hora:h(3), estado:'nuevo', total:61900},
+    {numero:1002, mesa:'07', items:'1x Camarones, 1x César con Salmón, 2x Café Cappuccino', notas:'[Adición al #1000] · extra limón', hora:h(8), estado:'preparando', total:76300},
+    {numero:1003, mesa:'01', items:'3x Chocolate Fondue, 2x Malteada', notas:'', hora:h(22), estado:'listo', total:72300},
+  ];
+  idsVistos = pedidos.map(p => p.numero+'');
+  renderStats(); renderGrid(); setOnline(true);
+}
+
+if (SCRIPT_URL.includes('TU_URL_AQUI')) {
+  demo();
+} else {
+  fetchPedidos();
+  setInterval(fetchPedidos, 5000);
+}
+</script>
+</body>
+</html>
