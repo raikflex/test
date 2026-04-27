@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Mesas — MesaYa</title>
+<script>
+const RID  = '46e4e0cc-d014-440e-b34f-a112348399c4';
+const BASE = 'https://raikflex.github.io/mesaya/cyw_menu.html';
+const VER  = Date.now(); // cache-bust automático cada vez que se regeneran
+
+function generarQRs() {
+  const desde = parseInt(document.getElementById('desde').value) || 1;
+  const hasta  = parseInt(document.getElementById('hasta').value) || 20;
+  const grid   = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  for (let m = desde; m <= hasta; m++) {
+    const mesa = String(m).padStart(2,'0');
+    const url  = `${BASE}?mesa=${mesa}&rid=${RID}&v=${VER}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}&color=09090b&bgcolor=ffffff&margin=4`;
+
+    const card = document.createElement('div');
+    card.className = 'qr-card';
+    card.innerHTML = `
+      <div class="qr-brand">MesaYa</div>
+      <img src="${qrUrl}" width="180" height="180" style="display:block;margin:8px auto" alt="QR Mesa ${mesa}">
+      <div class="qr-mesa">Mesa ${mesa}</div>
+      <div class="qr-url">${url}</div>
+    `;
+    grid.appendChild(card);
+  }
+}
+
+generarQRs();
+</script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#f4f4f5;padding:32px;color:#09090b}
+  h1{font-size:22px;font-weight:600;margin-bottom:6px}
+  p{font-size:13px;color:#71717a;margin-bottom:24px}
+  .config{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:20px;margin-bottom:24px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#71717a}
+  .field input{background:#f4f4f5;border:1px solid #e4e4e7;border-radius:8px;padding:8px 12px;font-size:14px;outline:none;width:100px}
+  .field input:focus{border-color:#22c55e}
+  .btn{background:#22c55e;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .btn:hover{background:#16a34a}
+  .btn-print{background:#09090b}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+  .qr-card{background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:20px;text-align:center;break-inside:avoid}
+  .qr-card canvas{margin:0 auto;display:block}
+  .qr-mesa{font-size:18px;font-weight:700;margin-top:12px;color:#09090b}
+  .qr-url{font-size:10px;color:#a1a1aa;margin-top:4px;word-break:break-all}
+  .qr-brand{font-size:11px;color:#22c55e;font-weight:600;margin-top:6px;letter-spacing:.05em}
+  @media print{
+    .config,.btn-print,h1,p{display:none!important}
+    body{background:#fff;padding:0}
+    .grid{grid-template-columns:repeat(3,1fr);gap:8px}
+    .qr-card{border:1px solid #ddd;padding:12px}
+  }
+</style>
+</head>
+<body>
+<h1>Generador de QR — MesaYa</h1>
+<p>Imprime estas tarjetas y ponlas en cada mesa. El cliente escanea y hace su pedido al instante.</p>
+
+<div class="config">
+  <div class="field">
+    <label>Desde mesa</label>
+    <input type="number" id="desde" value="1" min="1">
+  </div>
+  <div class="field">
+    <label>Hasta mesa</label>
+    <input type="number" id="hasta" value="20" min="1">
+  </div>
+  <button class="btn" onclick="generarQRs()">Generar QR</button>
+  <button class="btn btn-print" onclick="window.print()">🖨 Imprimir todo</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+</body>
+</html>
