@@ -33,38 +33,40 @@ export type EstadoLlamado = 'activo' | 'atendido' | 'cancelado';
 export interface Database {
   public: {
     Tables: {
-      restaurantes: {
+     restaurantes: {
         Row: {
           id: string;
+          dueno_user_id: string;
           nombre_publico: string;
           nit: string | null;
           direccion: string | null;
-          color_marca: string;
           usa_meseros: boolean;
-          horario_apertura: string | null;
-          horario_cierre: string | null;
+          horario_apertura: string;
+          horario_cierre: string;
           dias_operacion: string[];
           timezone: string;
+          color_marca: string;
           estado: EstadoRestaurante;
-          trial_termina_en: string | null;
+          trial_termina_en: string;
           creado_en: string;
-          actualizado_en: string;
+          actualizada_en: string;
         };
         Insert: {
           id?: string;
+          dueno_user_id: string;
           nombre_publico: string;
           nit?: string | null;
           direccion?: string | null;
-          color_marca?: string;
           usa_meseros?: boolean;
-          horario_apertura?: string | null;
-          horario_cierre?: string | null;
+          horario_apertura?: string;
+          horario_cierre?: string;
           dias_operacion?: string[];
           timezone?: string;
+          color_marca?: string;
           estado?: EstadoRestaurante;
-          trial_termina_en?: string | null;
+          trial_termina_en?: string;
           creado_en?: string;
-          actualizado_en?: string;
+          actualizada_en?: string;
         };
         Update: Partial<Database['public']['Tables']['restaurantes']['Insert']>;
         Relationships: [];

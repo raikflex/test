@@ -93,21 +93,20 @@ export async function guardarDatosNegocio(
   const admin = createServiceClient();
 
   // 1. Crear restaurante. Estado=archivado hasta cerrar el wizard.
-  const { data: nuevoRest, error: insertRestError } = await admin
+const { data: nuevoRest, error: insertRestError } = await admin
     .from('restaurantes')
     .insert({
+      dueno_user_id: user.id,
       nombre_publico: parsed.data.nombre_publico,
       nit: parsed.data.nit,
       direccion: parsed.data.direccion,
       color_marca: parsed.data.color_marca,
       estado: 'archivado',
-      timezone: 'America/Bogota',
-      usa_meseros: true,
-      dias_operacion: [],
+      // horario_apertura, horario_cierre, dias_operacion, timezone, usa_meseros
+      // tienen defaults sanos en la base. Los confirmamos en el paso 3.
     })
     .select('id')
     .single();
-
   if (insertRestError || !nuevoRest) {
     return {
       ok: false,

@@ -2,13 +2,12 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@mesaya/database/server';
 
 /**
- * Layout de toda la zona /admin. Garantiza:
- *   1. Hay sesión activa (usuario logueado)
- *   2. El usuario tiene perfil con rol=dueno
+ * Layout de toda la zona /admin. Garantiza que hay sesión activa.
  *
- * Decisión: NO redirigimos aquí si falta restaurante_id (eso lo hace cada
- * sub-ruta), porque el onboarding mismo vive en /admin/onboarding y no
- * podríamos entrar.
+ * NO chequea perfil aquí porque el perfil se crea en paso-1 del onboarding
+ * (junto con el restaurante, ya que perfiles.restaurante_id es NOT NULL).
+ * Cada sub-ruta es responsable de chequear si el dueño completó onboarding
+ * y redirigir a paso-1 si falta.
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -17,23 +16,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   } = await supabase.auth.getUser();
 
   if (!user) redirect('/signup');
-
-  const { data: perfil } = await supabase
-    .from('perfiles')
-    .select('id, rol, restaurante_id, nombre_completo')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  if (!perfil) {
-    // Cuenta auth sin perfil. Estado raro — sacamos al signup donde el
-    // server action lo crea de forma idempotente.
-    redirect('/signup');
-  }
-
-  if (perfil.rol !== 'dueno') {
-    // Mesero o cocina logueados aquí: van a la app de staff.
-    redirect(process.env.NEXT_PUBLIC_STAFF_URL ?? '/');
-  }
 
   return <>{children}</>;
 }
