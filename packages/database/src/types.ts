@@ -72,17 +72,21 @@ export interface Database {
       perfiles: {
         Row: {
           id: string; // = auth.users.id
-          restaurante_id: string | null;
+          restaurante_id: string;
           rol: RolPerfil;
-          nombre_completo: string | null;
+          nombre: string;
+          activo: boolean;
           creado_en: string;
+          actualizado_en: string;
         };
         Insert: {
           id: string;
-          restaurante_id?: string | null;
+          restaurante_id: string;
           rol: RolPerfil;
-          nombre_completo?: string | null;
+          nombre: string;
+          activo?: boolean;
           creado_en?: string;
+          actualizado_en?: string;
         };
         Update: Partial<Database['public']['Tables']['perfiles']['Insert']>;
         Relationships: [

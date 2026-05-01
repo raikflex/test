@@ -3,14 +3,10 @@
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createClient } from '@mesaya/database/server';
-import { createServiceClient } from '@mesaya/database/service';
 
 const signupSchema = z.object({
   email: z.string().trim().toLowerCase().email('Correo inválido'),
-  password: z
-    .string()
-    .min(8, 'Mínimo 8 caracteres')
-    .max(72, 'Máximo 72 caracteres'),
+  password: z.string().min(8, 'Mínimo 8 caracteres').max(72, 'Máximo 72 caracteres'),
   nombre: z.string().trim().min(2, 'Escribe tu nombre').max(80),
 });
 
@@ -43,61 +39,27 @@ export async function signupOwner(
 
   const supabase = await createClient();
 
-  // 1. Crear cuenta. Como el cliente usa anon auth, los dueños SIEMPRE entran
-  //    por aquí (signUp normal con email/password).
+  // Solo creamos auth.users. El perfil se crea en paso-1 del onboarding,
+  // junto con el restaurante, porque perfiles.restaurante_id es NOT NULL.
+  // Guardamos el nombre y el rol en user_metadata para usarlos después.
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
-      data: { nombre_completo: parsed.data.nombre, rol_intencion: 'dueno' },
+      data: {
+        nombre: parsed.data.nombre,
+        rol_intencion: 'dueno',
+      },
     },
   });
 
-  if (error) {
-    return { ok: false, error: error.message };
-  }
+  if (error) return { ok: false, error: error.message };
+  if (!data.user) return { ok: false, error: 'No se pudo crear la cuenta. Intenta de nuevo.' };
 
-  if (!data.user) {
-    return { ok: false, error: 'No se pudo crear la cuenta. Intenta de nuevo.' };
-  }
-
-  // 2. Crear perfil con rol=dueno y restaurante_id=null.
-  //    Usamos el service client a propósito:
-  //    - Si tu proyecto Supabase tiene "Confirm email" activado, signUp NO
-  //      devuelve sesión, así que el cliente auth-bound vería auth.uid()=null
-  //      y el INSERT con RLS fallaría.
-  //    - Si tienes un trigger on_auth_user_created que ya crea el perfil,
-  //      este upsert es idempotente y no hace daño.
-  //    Mantener este path único cubre ambos casos sin ramificar.
-  const admin = createServiceClient();
-  const { error: perfilError } = await admin.from('perfiles').upsert(
-    {
-      id: data.user.id,
-      rol: 'dueno',
-      nombre_completo: parsed.data.nombre,
-      restaurante_id: null,
-    },
-    { onConflict: 'id' },
-  );
-
-  if (perfilError) {
-    return {
-      ok: false,
-      error:
-        'Tu cuenta se creó pero no pudimos guardar el perfil. ' +
-        'Escríbenos a soporte. Detalle: ' +
-        perfilError.message,
-    };
-  }
-
-  // 3. Si Supabase tiene confirmación de correo activada, data.session será null
-  //    y el usuario tendrá que confirmar antes de seguir. Para MVP en demo es
-  //    cómodo dejarla apagada. Manejamos ambos casos:
   if (!data.session) {
     return {
       ok: true,
-      error:
-        'Cuenta creada. Te enviamos un correo para confirmar antes de continuar.',
+      error: 'Cuenta creada. Te enviamos un correo para confirmar antes de continuar.',
     };
   }
 
