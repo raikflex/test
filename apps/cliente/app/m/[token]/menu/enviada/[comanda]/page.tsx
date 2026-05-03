@@ -25,7 +25,10 @@ type ComandaConItems = {
   items: ItemFila[];
 };
 
-const ETIQUETAS_ESTADO: Record<string, { label: string; tono: 'pending' | 'progress' | 'done' }> = {
+const ETIQUETAS_ESTADO: Record<
+  string,
+  { label: string; tono: 'pending' | 'progress' | 'done' }
+> = {
   pendiente: { label: 'En cola', tono: 'pending' },
   en_preparacion: { label: 'En preparación', tono: 'progress' },
   lista: { label: 'Lista', tono: 'progress' },
@@ -37,7 +40,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
   const { token, comanda } = await params;
   const supabase = await createClient();
 
-  // 1) Validar mesa.
   const { data: mesa } = await supabase
     .from('mesas')
     .select(
@@ -61,7 +63,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
 
   if (!restaurante) notFound();
 
-  // 2) Comanda recién enviada — la usamos para identificar la sesion_cliente.
   const { data: comandaActual } = await supabase
     .from('comandas')
     .select('id, sesion_id, sesion_cliente_id')
@@ -71,7 +72,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
 
   if (!comandaActual) notFound();
 
-  // 3) Datos del cliente.
   const { data: sesionCliente } = await supabase
     .from('sesion_clientes')
     .select('nombre')
@@ -80,7 +80,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
 
   const nombreCliente = (sesionCliente?.nombre as string) ?? '';
 
-  // 4) Todas las comandas de este cliente en esta sesión, en orden cronológico.
   const { data: comandasRaw } = await supabase
     .from('comandas')
     .select('id, numero_diario, estado, total, creada_en')
@@ -95,7 +94,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
 
   if (comandas.length === 0) notFound();
 
-  // 5) Items de todas las comandas en una sola query.
   const comandaIds = comandas.map((c) => c.id);
   const { data: itemsRaw } = await supabase
     .from('comanda_items')
@@ -135,7 +133,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
       style={{ background: 'var(--color-paper)' }}
     >
       <div className="flex-1 px-5 py-10 max-w-md mx-auto w-full">
-        {/* Banner de pedido enviado */}
         <div
           className="rounded-[var(--radius-lg)] p-5 mb-6 flex items-center gap-4"
           style={{
@@ -168,7 +165,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
           </div>
         </div>
 
-        {/* Identificación */}
         <p
           className="text-xs text-center mb-6"
           style={{ color: 'var(--color-ink-soft)' }}
@@ -176,7 +172,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
           Mesa {mesa.numero as string} · {restaurante.nombre_publico}
         </p>
 
-        {/* Tu cuenta hasta ahora */}
         <h2
           className="font-[family-name:var(--font-display)] text-2xl tracking-[-0.015em] mb-4"
           style={{ color: 'var(--color-ink)' }}
@@ -195,7 +190,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
           ))}
         </div>
 
-        {/* Total acumulado */}
         <section
           className="rounded-[var(--radius-lg)] border bg-white px-5 py-4 mb-6"
           style={{ borderColor: 'var(--color-border)' }}
@@ -225,7 +219,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
           </div>
         </section>
 
-        {/* Aviso */}
         <p
           className="text-[0.7rem] text-center mb-8 leading-relaxed px-2"
           style={{ color: 'var(--color-muted)' }}
@@ -234,7 +227,6 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
           mesero se acercará a tu mesa.
         </p>
 
-        {/* Botones */}
         <div className="space-y-2">
           <Link
             href={`/m/${token}/menu`}
@@ -246,30 +238,28 @@ export default async function ComandaEnviadaPage({ params }: PageProps) {
           >
             Agregar más al pedido
           </Link>
-          <button
-            type="button"
-            disabled
-            className="w-full h-12 rounded-[var(--radius-md)] text-sm font-medium border opacity-50 cursor-not-allowed"
+          <Link
+            href={`/m/${token}/llamar-mesero`}
+            className="w-full h-12 grid place-items-center rounded-[var(--radius-md)] text-sm font-medium border"
             style={{
               background: 'white',
               color: 'var(--color-ink)',
               borderColor: 'var(--color-border-strong)',
             }}
           >
-            Llamar al mesero (próximamente)
-          </button>
-          <button
-            type="button"
-            disabled
-            className="w-full h-12 rounded-[var(--radius-md)] text-sm font-medium border opacity-50 cursor-not-allowed"
+            Llamar al mesero
+          </Link>
+          <Link
+            href={`/m/${token}/pedir-cuenta`}
+            className="w-full h-12 grid place-items-center rounded-[var(--radius-md)] text-sm font-medium border"
             style={{
               background: 'white',
               color: 'var(--color-ink)',
               borderColor: 'var(--color-border-strong)',
             }}
           >
-            Pedir la cuenta (próximamente)
-          </button>
+            Pedir la cuenta
+          </Link>
         </div>
       </div>
 
@@ -299,7 +289,6 @@ function ComandaCard({
     tono: 'pending' as const,
   };
 
-  // Hora HH:MM en zona del navegador (suficiente para mostrar al cliente).
   const hora = new Date(comanda.creada_en).toLocaleTimeString('es-CO', {
     hour: '2-digit',
     minute: '2-digit',

@@ -15,6 +15,7 @@ import {
 } from '../../../../../lib/carrito';
 import {
   guardarAuthUserId,
+  guardarUltimaComandaId,
   leerSesionCliente,
 } from '../../../../../lib/cliente-session';
 import { enviarComanda } from './actions';
@@ -148,6 +149,9 @@ export function CarritoCliente({
       }
 
       vaciarCarrito(qrToken);
+      // Guardar la última comanda para que /llamar-mesero y /pedir-cuenta
+      // tengan un "Volver" que apunte a la pantalla de confirmación.
+      guardarUltimaComandaId(qrToken, resultado.comandaId);
       router.push(`/m/${qrToken}/menu/enviada/${resultado.comandaId}`);
     } catch (err) {
       console.error('[enviarComanda]', err);
@@ -350,8 +354,6 @@ export function CarritoCliente({
     </main>
   );
 }
-
-/* ============ Pantallas auxiliares ============ */
 
 function PantallaCuentaRegresiva({
   segundosRestantes,
@@ -559,10 +561,7 @@ function ItemFila({
     <li className="px-4 py-4">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex-1 min-w-0">
-          <p
-            className="text-sm font-medium"
-            style={{ color: 'var(--color-ink)' }}
-          >
+          <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
             {item.nombre}
           </p>
           {item.notas ? (
@@ -612,12 +611,7 @@ function ItemFila({
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M5 12h14"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
+              <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
           <span
@@ -639,12 +633,7 @@ function ItemFila({
             }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M12 5v14M5 12h14"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
+              <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </button>
         </div>
