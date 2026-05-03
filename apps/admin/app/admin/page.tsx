@@ -175,7 +175,9 @@ function Resumen({
       >
         <Stat label="Categorías" valor={categorias} />
         <Stat label="Productos" valor={productos} />
-        <Stat label="Mesas" valor={mesas} />
+        <Link href="/admin/mesas" className="contents">
+          <Stat label="Mesas" valor={mesas} />
+        </Link>
         <Stat
           label="Equipo"
           valor={cocinas + meseros}
