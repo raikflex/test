@@ -9,7 +9,12 @@ const fraunces = Fraunces({
   weight: ['400', '500', '600', '700'],
   style: ['normal', 'italic'],
 });
-const geist = Geist({ subsets: ['latin'], display: 'swap', variable: '--font-sans' });
+
+const geist = Geist({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+});
 
 export const metadata: Metadata = {
   title: { default: 'MesaYA Staff', template: '%s · MesaYA Staff' },
@@ -17,7 +22,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="es" className={`${fraunces.variable} ${geist.variable}`}>
       <body>{children}</body>
