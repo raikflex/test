@@ -178,6 +178,15 @@ export function ComandaEnviadaCliente({
     .filter((c) => c.estado !== 'cancelada')
     .reduce((acc, c) => acc + c.total, 0);
   const cantidadActivas = comandas.filter((c) => c.estado !== 'cancelada').length;
+  // Solo permitimos pedir la cuenta cuando TODAS las comandas no canceladas
+  // están en estado 'entregada'. Si hay alguna en pendiente/preparando/lista,
+  // el botón se deshabilita con un mensaje explicativo. Esto evita que el
+  // cliente pague antes de recibir su pedido completo.
+  const todasEntregadas =
+    cantidadActivas > 0 &&
+    comandas
+      .filter((c) => c.estado !== 'cancelada')
+      .every((c) => c.estado === 'entregada');
   const ultimaComanda =
     comandas.find((c) => c.id === comandaActualId) ??
     comandas[comandas.length - 1]!;
@@ -300,17 +309,38 @@ export function ComandaEnviadaCliente({
           >
             Llamar al mesero
           </Link>
-          <Link
-            href={`/m/${qrToken}/pedir-cuenta`}
-            className="w-full h-12 grid place-items-center rounded-[var(--radius-md)] text-sm font-medium border"
-            style={{
-              background: 'white',
-              color: 'var(--color-ink)',
-              borderColor: 'var(--color-border-strong)',
-            }}
-          >
-            Pedir la cuenta
-          </Link>
+          {todasEntregadas ? (
+            <Link
+              href={`/m/${qrToken}/pedir-cuenta`}
+              className="w-full h-12 grid place-items-center rounded-[var(--radius-md)] text-sm font-medium border"
+              style={{
+                background: 'white',
+                color: 'var(--color-ink)',
+                borderColor: 'var(--color-border-strong)',
+              }}
+            >
+              Pedir la cuenta
+            </Link>
+          ) : (
+            <div
+              className="w-full rounded-[var(--radius-md)] border-2 border-dashed px-3 py-3 text-center"
+              style={{ borderColor: 'var(--color-border)' }}
+              aria-disabled="true"
+            >
+              <p
+                className="text-[0.7rem] uppercase tracking-[0.12em]"
+                style={{ color: 'var(--color-muted)' }}
+              >
+                Pedir la cuenta · Disponible al recibir
+              </p>
+              <p
+                className="text-xs mt-1 leading-relaxed"
+                style={{ color: 'var(--color-ink-soft)' }}
+              >
+                Espera a que el mesero entregue todos tus pedidos.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

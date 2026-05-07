@@ -29,6 +29,9 @@ export type LlamadoMesero = {
   creadoEn: string;
   mesaNumero: string;
   meseroAtendiendoId: string | null;
+  // Nota opcional que el cliente escribió al llamar. Ej: "necesito otra
+  // cuchara", "más servilletas". Si null, el mesero no ve sección de nota.
+  nota: string | null;
 };
 
 export type ComandaListaMesero = {
@@ -50,6 +53,9 @@ export type PagoMesero = {
   meseroAtendiendoId: string | null;
   totalAcumulado: number;
   cantidadComandas: number;
+  // Forma de pago que el cliente eligió al pedir cuenta. Útil para que el
+  // mesero prepare el cambio si es efectivo, o el datáfono si es tarjeta.
+  formaPagoPreferida: string | null;
   // Datos de factura opcionales — el cliente los puede haber pasado al pedir
   // cuenta. Si están, el mesero los ve en el modal de cobrar para reportarlos
   // al sistema contable. Se denormalizan a `pagos` al confirmar.
@@ -323,7 +329,7 @@ async function traerLlamadoCompleto(llamadoId: string): Promise<LlamadoMesero | 
     .from('llamados_mesero')
     .select(
       `
-      id, motivo, creado_en, mesero_atendiendo_id,
+      id, motivo, creado_en, mesero_atendiendo_id, nota,
       sesiones (mesas (numero))
     `,
     )
@@ -340,20 +346,21 @@ async function traerLlamadoCompleto(llamadoId: string): Promise<LlamadoMesero | 
     creadoEn: data.creado_en as string,
     mesaNumero: (mesa as { numero: string } | null)?.numero ?? '?',
     meseroAtendiendoId: (data.mesero_atendiendo_id as string | null) ?? null,
+    nota: (data.nota as string | null) ?? null,
   };
 }
 
 async function traerPagoCompleto(llamadoId: string): Promise<PagoMesero | null> {
   const supabase = createClient();
-  // Leer también doc_tipo, doc_numero, doc_nombre (datos de facturación
-  // opcionales que el cliente pasó al pedir cuenta) para mostrarlos en el
-  // modal de cobrar.
+  // Leer también doc_tipo, doc_numero, doc_nombre, forma_pago_preferida
+  // (datos opcionales que el cliente pasó al pedir cuenta) para mostrarlos en
+  // el modal de cobrar.
   const { data: llamado } = await supabase
     .from('llamados_mesero')
     .select(
       `
       id, creado_en, mesero_atendiendo_id, sesion_id,
-      doc_tipo, doc_numero, doc_nombre,
+      doc_tipo, doc_numero, doc_nombre, forma_pago_preferida,
       sesiones (mesas (numero))
     `,
     )
@@ -384,6 +391,7 @@ async function traerPagoCompleto(llamadoId: string): Promise<PagoMesero | null> 
     meseroAtendiendoId: (llamado.mesero_atendiendo_id as string | null) ?? null,
     totalAcumulado,
     cantidadComandas: (comandas ?? []).length,
+    formaPagoPreferida: (llamado.forma_pago_preferida as string | null) ?? null,
     docTipo: (llamado.doc_tipo as string | null) ?? null,
     docNumero: (llamado.doc_numero as string | null) ?? null,
     docNombre: (llamado.doc_nombre as string | null) ?? null,
@@ -718,12 +726,31 @@ function CardLlamado({
         <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
           {llamado.motivo === 'campana' ? 'Necesita ayuda' : 'Llamado del cliente'}
         </p>
+        {llamado.nota ? (
+          <div
+            className="mt-2 rounded-[var(--radius-md)] border px-3 py-2"
+            style={{ borderColor: '#fde68a', background: '#fefce8' }}
+          >
+            <p
+              className="text-[0.65rem] uppercase tracking-[0.12em] mb-0.5"
+              style={{ color: '#92400e' }}
+            >
+              💬 El cliente dice
+            </p>
+            <p
+              className="text-sm leading-relaxed"
+              style={{ color: 'var(--color-ink)' }}
+            >
+              «{llamado.nota}»
+            </p>
+          </div>
+        ) : null}
         {esMio ? (
-          <p className="text-[0.7rem] mt-1 italic" style={{ color: colorMarca }}>
+          <p className="text-[0.7rem] mt-2 italic" style={{ color: colorMarca }}>
             Estás atendiendo este llamado
           </p>
         ) : esDeOtro ? (
-          <p className="text-[0.7rem] mt-1 italic" style={{ color: 'var(--color-muted)' }}>
+          <p className="text-[0.7rem] mt-2 italic" style={{ color: 'var(--color-muted)' }}>
             Otro mesero está atendiendo
           </p>
         ) : null}
@@ -887,18 +914,35 @@ function CardPago({
   }
 
   const tieneFactura = !!pago.docNumero;
+  const ETIQUETAS_PAGO: Record<string, { label: string; bg: string; fg: string }> = {
+    efectivo: { label: '💵 Efectivo', bg: '#dcfce7', fg: '#166534' },
+    tarjeta: { label: '💳 Tarjeta', bg: '#dbeafe', fg: '#1e40af' },
+    transferencia: { label: '📱 Transferencia', bg: '#ede9fe', fg: '#5b21b6' },
+    no_seguro: { label: '❓ Aún no decide', bg: '#fef3c7', fg: '#92400e' },
+  };
+  const formaPago = pago.formaPagoPreferida
+    ? ETIQUETAS_PAGO[pago.formaPagoPreferida]
+    : null;
 
   return (
     <>
       <CardBase esMio={esMio} esDeOtro={esDeOtro} colorMarca={colorMarca} pending={pending}>
         <header className="px-4 py-3 flex items-center justify-between gap-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: 'var(--color-paper-deep)', color: 'var(--color-ink-soft)' }}>
               Mesa {pago.mesaNumero}
             </span>
             <span className="text-[0.7rem]" style={{ color: 'var(--color-muted)' }}>
               {pago.cantidadComandas} pedido{pago.cantidadComandas === 1 ? '' : 's'}
             </span>
+            {formaPago ? (
+              <span
+                className="text-[0.65rem] uppercase tracking-[0.05em] px-1.5 py-0.5 rounded font-medium"
+                style={{ background: formaPago.bg, color: formaPago.fg }}
+              >
+                {formaPago.label}
+              </span>
+            ) : null}
             {tieneFactura ? (
               <span
                 className="text-[0.65rem] uppercase tracking-[0.1em] px-1.5 py-0.5 rounded font-medium"

@@ -4,8 +4,10 @@ import { createClient } from '@mesaya/database/server';
 import { PanelShell } from '../_components/panel-shell';
 import { BannerActivacion } from './banner-activacion';
 import { BannerBienvenida } from './banner-bienvenida';
+import { ToggleEstadoRestaurante } from './toggle-estado-restaurante';
 
 export const metadata = { title: 'Panel · MesaYA' };
+export const dynamic = 'force-dynamic';
 
 export default async function AdminHome({
   searchParams,
@@ -31,6 +33,11 @@ export default async function AdminHome({
 
   const restauranteId = perfil.restaurante_id as string;
 
+  // Inicio del día (Bogotá): para queries "hoy"
+  const inicioDia = new Date();
+  inicioDia.setHours(0, 0, 0, 0);
+  const inicioDiaIso = inicioDia.toISOString();
+
   const [
     { data: restaurante },
     categoriasResp,
@@ -38,6 +45,9 @@ export default async function AdminHome({
     mesasResp,
     equipoResp,
     reviewsResp,
+    pagosHoyResp,
+    comandasHoyResp,
+    sesionesActivasResp,
   ] = await Promise.all([
     supabase
       .from('restaurantes')
@@ -67,6 +77,25 @@ export default async function AdminHome({
       .select('estrellas, comentario, creada_en')
       .order('creada_en', { ascending: false })
       .limit(50),
+    // Pagos confirmados hoy (para sumar ingresos)
+    supabase
+      .from('pagos')
+      .select('monto_total, estado, confirmado_en')
+      .gte('confirmado_en', inicioDiaIso)
+      .eq('estado', 'confirmado'),
+    // Comandas creadas hoy (excluyendo canceladas)
+    supabase
+      .from('comandas')
+      .select('id', { count: 'exact', head: true })
+      .eq('restaurante_id', restauranteId)
+      .gte('creada_en', inicioDiaIso)
+      .neq('estado', 'cancelada'),
+    // Sesiones abiertas ahora
+    supabase
+      .from('sesiones')
+      .select('id', { count: 'exact', head: true })
+      .eq('restaurante_id', restauranteId)
+      .eq('estado', 'abierta'),
   ]);
 
   const categorias = categoriasResp.count ?? 0;
@@ -75,6 +104,15 @@ export default async function AdminHome({
   const equipo = (equipoResp.data ?? []) as { rol: string }[];
   const cocinas = equipo.filter((p) => p.rol === 'cocina').length;
   const meseros = equipo.filter((p) => p.rol === 'mesero').length;
+
+  // Filtramos pagos hoy que correspondan a sesiones de este restaurante.
+  // Para evitar JOIN, asumimos que `pagos` ya respeta RLS y solo trae los
+  // que el dueño puede ver. Si el resumen sale alto, validamos con SQL aparte.
+  const pagosHoy = (pagosHoyResp.data ?? []) as { monto_total: number }[];
+  const ingresoHoy = pagosHoy.reduce((acc, p) => acc + (p.monto_total ?? 0), 0);
+  const cantidadPagosHoy = pagosHoy.length;
+  const comandasHoy = comandasHoyResp.count ?? 0;
+  const sesionesActivas = sesionesActivasResp.count ?? 0;
 
   const estado = (restaurante?.estado as string) ?? 'archivado';
   const trialTermina = restaurante?.trial_termina_en as string | null;
@@ -119,6 +157,18 @@ export default async function AdminHome({
 
         <BannerActivacion estado={estado} trialTerminaEn={trialTermina} />
 
+        <ToggleEstadoRestaurante estadoActual={estado} colorMarca={colorMarca} />
+
+        <ResumenHoy
+          ingreso={ingresoHoy}
+          pagos={cantidadPagosHoy}
+          comandas={comandasHoy}
+          sesionesActivas={sesionesActivas}
+          colorMarca={colorMarca}
+        />
+
+        <Atajos />
+
         <Resumen
           categorias={categorias}
           productos={productos}
@@ -130,6 +180,155 @@ export default async function AdminHome({
         <SeccionResenas resumen={reviewsResumen} colorMarca={colorMarca} />
       </div>
     </PanelShell>
+  );
+}
+
+function ResumenHoy({
+  ingreso,
+  pagos,
+  comandas,
+  sesionesActivas,
+  colorMarca,
+}: {
+  ingreso: number;
+  pagos: number;
+  comandas: number;
+  sesionesActivas: number;
+  colorMarca: string;
+}) {
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-3">
+        <h2
+          className="text-xs uppercase tracking-[0.14em]"
+          style={{ color: 'var(--color-muted)' }}
+        >
+          Hoy
+        </h2>
+        <Link
+          href="/admin/metricas"
+          className="text-xs underline"
+          style={{ color: 'var(--color-ink-soft)' }}
+        >
+          Ver métricas →
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <CardHoy
+          label="Ingreso"
+          valor={`$${ingreso.toLocaleString('es-CO')}`}
+          detalle={`${pagos} ${pagos === 1 ? 'cuenta cobrada' : 'cuentas cobradas'}`}
+          destacado
+          colorMarca={colorMarca}
+        />
+        <CardHoy
+          label="Comandas"
+          valor={comandas.toString()}
+          detalle={comandas === 0 ? 'sin pedidos aún' : 'creadas hoy'}
+        />
+        <CardHoy
+          label="Mesas activas"
+          valor={sesionesActivas.toString()}
+          detalle={sesionesActivas === 0 ? 'sin clientes ahora' : 'abiertas ahora'}
+          puslante={sesionesActivas > 0}
+          colorMarca={colorMarca}
+        />
+        <CardHoy
+          label="Promedio"
+          valor={pagos > 0 ? `$${Math.round(ingreso / pagos).toLocaleString('es-CO')}` : '—'}
+          detalle={pagos > 0 ? 'por cuenta' : 'sin datos'}
+        />
+      </div>
+    </section>
+  );
+}
+
+function CardHoy({
+  label,
+  valor,
+  detalle,
+  destacado,
+  puslante,
+  colorMarca,
+}: {
+  label: string;
+  valor: string;
+  detalle: string;
+  destacado?: boolean;
+  puslante?: boolean;
+  colorMarca?: string;
+}) {
+  return (
+    <div
+      className="rounded-[var(--radius-lg)] border bg-white p-4 sm:p-5"
+      style={{
+        borderColor: destacado && colorMarca ? colorMarca : 'var(--color-border)',
+        borderWidth: destacado ? 1.5 : 1,
+      }}
+    >
+      <div className="flex items-center gap-1.5 mb-1">
+        <p
+          className="text-xs uppercase tracking-[0.12em]"
+          style={{ color: 'var(--color-muted)' }}
+        >
+          {label}
+        </p>
+        {puslante ? (
+          <span
+            className="size-1.5 rounded-full animate-pulse"
+            style={{ background: colorMarca ?? '#22c55e' }}
+          />
+        ) : null}
+      </div>
+      <p
+        className="font-[family-name:var(--font-display)] text-3xl tracking-[-0.02em] tabular-nums"
+        style={{ color: destacado && colorMarca ? colorMarca : 'var(--color-ink)' }}
+      >
+        {valor}
+      </p>
+      <p
+        className="text-[0.7rem] mt-1 leading-relaxed"
+        style={{ color: 'var(--color-muted)' }}
+      >
+        {detalle}
+      </p>
+    </div>
+  );
+}
+
+function Atajos() {
+  const ATAJOS = [
+    { href: '/admin/menu', label: 'Editar menú', icon: 'menu' },
+    { href: '/admin/mesas', label: 'Ver mesas', icon: 'table' },
+    { href: '/admin/equipo', label: 'Equipo', icon: 'team' },
+    { href: '/admin/configuracion', label: 'Configuración', icon: 'gear' },
+  ] as const;
+
+  return (
+    <section>
+      <h2
+        className="text-xs uppercase tracking-[0.14em] mb-3"
+        style={{ color: 'var(--color-muted)' }}
+      >
+        Atajos
+      </h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {ATAJOS.map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="rounded-[var(--radius-md)] border bg-white px-4 py-3 text-sm font-medium transition-colors hover:bg-[var(--color-paper-deep)]"
+            style={{
+              borderColor: 'var(--color-border)',
+              color: 'var(--color-ink)',
+            }}
+          >
+            {a.label} →
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 

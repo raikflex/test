@@ -102,6 +102,15 @@ export async function crearLlamado(input: {
     };
   }
 
+  // Persistir la nota del cliente. El mesero la verá en su tablero para saber
+  // qué pidió el cliente sin tener que ir físicamente a preguntar (ej:
+  // "necesito otra cuchara", "más servilletas", etc.).
+  const notaLimpia = input.nota?.trim();
+  const notaParaGuardar =
+    notaLimpia && notaLimpia.length > 0
+      ? notaLimpia.slice(0, 200)
+      : null;
+
   const { data: nuevo, error } = await admin
     .from('llamados_mesero')
     .insert({
@@ -110,6 +119,7 @@ export async function crearLlamado(input: {
       mesa_id: sesionInfo.mesaId,
       motivo: input.motivo,
       estado: 'pendiente',
+      nota: notaParaGuardar,
     })
     .select('id')
     .single();
@@ -139,7 +149,6 @@ export async function cancelarLlamado(input: {
 
   const admin = createServiceClient();
 
-  // Validar que el llamado pertenece a esta sesión y sigue pendiente.
   const { data: llamado } = await admin
     .from('llamados_mesero')
     .select('id, estado')

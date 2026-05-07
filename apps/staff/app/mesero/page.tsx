@@ -23,8 +23,9 @@ export default async function MeseroPage() {
   const supabase = await createClient();
 
   // --- Llamados activos (excluyendo motivo='pago' que va a sección de pagos) ---
-  // Traemos también doc_tipo, doc_numero, doc_nombre — solo se usan para los
-  // llamados de pago, pero leerlos en todos no tiene costo (son columnas).
+  // Traemos también doc_tipo, doc_numero, doc_nombre, forma_pago_preferida y nota.
+  // Las primeras 4 son para pagos; nota es para llamados normales (cliente
+  // escribió detalles como "más servilletas"). Leerlas en todos no tiene costo.
   const { data: llamadosRaw } = await supabase
     .from('llamados_mesero')
     .select(
@@ -38,6 +39,8 @@ export default async function MeseroPage() {
       doc_tipo,
       doc_numero,
       doc_nombre,
+      forma_pago_preferida,
+      nota,
       sesiones (
         mesas (numero)
       )
@@ -57,6 +60,8 @@ export default async function MeseroPage() {
     doc_tipo: string | null;
     doc_numero: string | null;
     doc_nombre: string | null;
+    forma_pago_preferida: string | null;
+    nota: string | null;
     sesiones: { mesas: { numero: string } | { numero: string }[] | null } | { mesas: { numero: string } | { numero: string }[] | null }[] | null;
   }[];
 
@@ -157,6 +162,7 @@ export default async function MeseroPage() {
         creadoEn: l.creado_en,
         mesaNumero: mesa?.numero ?? '?',
         meseroAtendiendoId: l.mesero_atendiendo_id,
+        nota: l.nota,
       };
     }),
     comandasListas: comandasListasArr.map((c) => {
@@ -185,8 +191,7 @@ export default async function MeseroPage() {
         meseroAtendiendoId: l.mesero_atendiendo_id,
         totalAcumulado: totalPorSesion.get(l.sesion_id) ?? 0,
         cantidadComandas: countPorSesion.get(l.sesion_id) ?? 0,
-        // Datos de factura opcionales (NIT/cédula del cliente). Si null, el
-        // modal de cobrar no muestra la sección "El cliente pidió factura".
+        formaPagoPreferida: l.forma_pago_preferida,
         docTipo: l.doc_tipo,
         docNumero: l.doc_numero,
         docNombre: l.doc_nombre,

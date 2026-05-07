@@ -138,6 +138,7 @@ export async function pedirCuenta(input: {
       mesa_id: mesa.id as string,
       motivo: 'pago',
       estado: 'pendiente',
+      forma_pago_preferida: input.formaPago,
       doc_tipo: factura?.tipoDoc ?? null,
       doc_numero: factura?.numero.trim() ?? null,
       doc_nombre: factura?.nombre.trim() ?? null,

@@ -42,6 +42,12 @@ export default async function MetricasPage() {
   const inicioHoyIso = inicioHoy.toISOString();
   const ahoraIso = ahora.toISOString();
 
+  // Inicio de los últimos 7 días (ventana móvil para "Esta semana")
+  const inicioSemana = new Date(ahora);
+  inicioSemana.setDate(inicioSemana.getDate() - 7);
+  inicioSemana.setHours(0, 0, 0, 0);
+  const inicioSemanaIso = inicioSemana.toISOString();
+
   // ===== Queries =====
 
   const [
@@ -51,6 +57,9 @@ export default async function MetricasPage() {
     comandasActivasResp,
     ultimaSesionResp,
     pagosUltimosResp,
+    pagosSemanaResp,
+    itemsSemanaResp,
+    sesionesSemanaResp,
   ] = await Promise.all([
     // Pagos confirmados hoy
     supabase
@@ -124,6 +133,50 @@ export default async function MetricasPage() {
       .eq('estado', 'confirmado')
       .order('confirmado_en', { ascending: false })
       .limit(5),
+    // === SEMANA: Pagos confirmados últimos 7 días para ingreso + ventas por día ===
+    supabase
+      .from('pagos')
+      .select(
+        `
+        monto_total,
+        confirmado_en,
+        sesion_id,
+        sesiones!inner(restaurante_id)
+      `,
+      )
+      .eq('estado', 'confirmado')
+      .gte('confirmado_en', inicioSemanaIso)
+      .lte('confirmado_en', ahoraIso),
+    // === SEMANA: Items vendidos últimos 7 días (para top 3 productos) ===
+    // Comanda_items con JOIN a comandas para filtrar por restaurante + fecha.
+    supabase
+      .from('comanda_items')
+      .select(
+        `
+        nombre_snapshot,
+        cantidad,
+        precio_snapshot,
+        comandas!inner(restaurante_id, estado, creada_en)
+      `,
+      )
+      .eq('comandas.restaurante_id', restauranteId)
+      .neq('comandas.estado', 'cancelada')
+      .gte('comandas.creada_en', inicioSemanaIso),
+    // === SEMANA: Sesiones cerradas últimos 7 días (para top mesas) ===
+    supabase
+      .from('sesiones')
+      .select(
+        `
+        id,
+        mesa_id,
+        total_facturado,
+        cerrada_en,
+        mesas(numero)
+      `,
+      )
+      .eq('restaurante_id', restauranteId)
+      .eq('estado', 'cerrada')
+      .gte('cerrada_en', inicioSemanaIso),
   ]);
 
   // Filtrar pagos por restaurante (porque la RLS hace JOIN, pero no garantiza
@@ -231,6 +284,121 @@ export default async function MetricasPage() {
         mesaNumero: mesa?.numero ?? '?',
       };
     });
+
+  // ===== Procesamiento de semana =====
+
+  type PagoSemanaRow = {
+    monto_total: number;
+    confirmado_en: string;
+    sesiones:
+      | { restaurante_id: string }
+      | { restaurante_id: string }[]
+      | null;
+  };
+
+  const pagosSemana = ((pagosSemanaResp.data ?? []) as PagoSemanaRow[]).filter((p) => {
+    const ses = Array.isArray(p.sesiones) ? p.sesiones[0] : p.sesiones;
+    return ses?.restaurante_id === restauranteId;
+  });
+
+  const ventasSemana = pagosSemana.reduce((acc, p) => acc + (p.monto_total ?? 0), 0);
+  const cantidadPagosSemana = pagosSemana.length;
+  const ticketPromSemana =
+    cantidadPagosSemana > 0 ? Math.round(ventasSemana / cantidadPagosSemana) : 0;
+
+  // Agrupar pagos por día (yyyy-mm-dd) para encontrar el día más vendido.
+  const ventasPorDia = new Map<string, number>();
+  for (const p of pagosSemana) {
+    const fecha = new Date(p.confirmado_en);
+    const dia = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
+    ventasPorDia.set(dia, (ventasPorDia.get(dia) ?? 0) + (p.monto_total ?? 0));
+  }
+  let diaTop: { fecha: string; monto: number } | null = null;
+  for (const [fecha, monto] of ventasPorDia) {
+    if (!diaTop || monto > diaTop.monto) {
+      diaTop = { fecha, monto };
+    }
+  }
+
+  // Top 3 productos de la semana — agrupar items por nombre_snapshot.
+  type ItemSemanaRow = {
+    nombre_snapshot: string;
+    cantidad: number;
+    precio_snapshot: number;
+    comandas:
+      | { restaurante_id: string; estado: string; creada_en: string }
+      | { restaurante_id: string; estado: string; creada_en: string }[]
+      | null;
+  };
+
+  const itemsSemana = ((itemsSemanaResp.data ?? []) as ItemSemanaRow[]).filter(
+    (i) => {
+      const c = Array.isArray(i.comandas) ? i.comandas[0] : i.comandas;
+      return c?.restaurante_id === restauranteId;
+    },
+  );
+
+  const productosAgrupados = new Map<
+    string,
+    { nombre: string; cantidad: number; monto: number }
+  >();
+  for (const it of itemsSemana) {
+    const nombre = it.nombre_snapshot;
+    const actual = productosAgrupados.get(nombre);
+    const cant = it.cantidad ?? 0;
+    const subtotal = (it.precio_snapshot ?? 0) * cant;
+    if (actual) {
+      actual.cantidad += cant;
+      actual.monto += subtotal;
+    } else {
+      productosAgrupados.set(nombre, { nombre, cantidad: cant, monto: subtotal });
+    }
+  }
+  const topProductos = Array.from(productosAgrupados.values())
+    .sort((a, b) => b.cantidad - a.cantidad)
+    .slice(0, 3);
+
+  // Top 3 mesas más activas (por sesiones cerradas en últimos 7 días).
+  type SesionSemanaRow = {
+    id: string;
+    mesa_id: string;
+    total_facturado: number | null;
+    mesas: { numero: string } | { numero: string }[] | null;
+  };
+
+  const sesionesSemana = (sesionesSemanaResp.data ?? []) as SesionSemanaRow[];
+  const mesasAgrupadas = new Map<
+    string,
+    { mesaId: string; numero: string; sesiones: number; monto: number }
+  >();
+  for (const s of sesionesSemana) {
+    const mesa = Array.isArray(s.mesas) ? s.mesas[0] : s.mesas;
+    const numero = mesa?.numero ?? '?';
+    const actual = mesasAgrupadas.get(s.mesa_id);
+    if (actual) {
+      actual.sesiones += 1;
+      actual.monto += s.total_facturado ?? 0;
+    } else {
+      mesasAgrupadas.set(s.mesa_id, {
+        mesaId: s.mesa_id,
+        numero,
+        sesiones: 1,
+        monto: s.total_facturado ?? 0,
+      });
+    }
+  }
+  const topMesas = Array.from(mesasAgrupadas.values())
+    .sort((a, b) => b.sesiones - a.sesiones)
+    .slice(0, 3);
+
+  // Formato bonito de día top
+  const diaTopFmt = diaTop
+    ? new Date(diaTop.fecha + 'T12:00:00').toLocaleDateString('es-CO', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'short',
+      })
+    : '—';
 
   return (
     <PanelShell currentPage="metricas" nombreNegocio={nombreNegocio}>
@@ -363,9 +531,152 @@ export default async function MetricasPage() {
           </section>
         ) : null}
 
+        {/* === ESTA SEMANA === */}
+        {cantidadPagosSemana > 0 ? (
+          <section className="mb-8">
+            <h2
+              className="text-xs uppercase tracking-[0.14em] mb-3"
+              style={{ color: 'var(--color-muted)' }}
+            >
+              Esta semana · últimos 7 días
+            </h2>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+              <CardSemana
+                label="Ingreso"
+                valor={`$${ventasSemana.toLocaleString('es-CO')}`}
+                detalle={`${cantidadPagosSemana} ${cantidadPagosSemana === 1 ? 'cuenta' : 'cuentas'}`}
+                destacado
+                colorMarca={colorMarca}
+              />
+              <CardSemana
+                label="Ticket promedio"
+                valor={`$${ticketPromSemana.toLocaleString('es-CO')}`}
+                detalle="por cuenta"
+              />
+              <CardSemana
+                label="Mejor día"
+                valor={diaTopFmt}
+                detalle={
+                  diaTop ? `$${diaTop.monto.toLocaleString('es-CO')}` : 'sin datos'
+                }
+              />
+              <CardSemana
+                label="Días con ventas"
+                valor={ventasPorDia.size.toString()}
+                detalle={ventasPorDia.size === 7 ? 'todos los días' : 'de 7 días'}
+              />
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3">
+              {/* Top 3 productos */}
+              {topProductos.length > 0 ? (
+                <div
+                  className="rounded-[var(--radius-lg)] border bg-white p-5"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <h3
+                    className="text-[0.7rem] uppercase tracking-[0.14em] mb-3"
+                    style={{ color: 'var(--color-muted)' }}
+                  >
+                    Productos más vendidos
+                  </h3>
+                  <ul className="space-y-3">
+                    {topProductos.map((p, i) => (
+                      <li
+                        key={p.nombre}
+                        className="flex items-center gap-3"
+                      >
+                        <span
+                          className="size-8 rounded-full grid place-items-center shrink-0 text-sm font-medium"
+                          style={{
+                            background:
+                              i === 0
+                                ? colorMarca
+                                : 'var(--color-paper-deep)',
+                            color: i === 0 ? 'white' : 'var(--color-ink-soft)',
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className="text-sm font-medium truncate"
+                            style={{ color: 'var(--color-ink)' }}
+                          >
+                            {p.nombre}
+                          </p>
+                          <p
+                            className="text-[0.7rem]"
+                            style={{ color: 'var(--color-muted)' }}
+                          >
+                            {p.cantidad} {p.cantidad === 1 ? 'unidad' : 'unidades'}{' '}
+                            · ${p.monto.toLocaleString('es-CO')}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {/* Top 3 mesas */}
+              {topMesas.length > 0 ? (
+                <div
+                  className="rounded-[var(--radius-lg)] border bg-white p-5"
+                  style={{ borderColor: 'var(--color-border)' }}
+                >
+                  <h3
+                    className="text-[0.7rem] uppercase tracking-[0.14em] mb-3"
+                    style={{ color: 'var(--color-muted)' }}
+                  >
+                    Mesas más activas
+                  </h3>
+                  <ul className="space-y-3">
+                    {topMesas.map((m, i) => (
+                      <li
+                        key={m.mesaId}
+                        className="flex items-center gap-3"
+                      >
+                        <span
+                          className="size-8 rounded-full grid place-items-center shrink-0 text-sm font-medium"
+                          style={{
+                            background:
+                              i === 0
+                                ? colorMarca
+                                : 'var(--color-paper-deep)',
+                            color: i === 0 ? 'white' : 'var(--color-ink-soft)',
+                          }}
+                        >
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className="text-sm font-medium"
+                            style={{ color: 'var(--color-ink)' }}
+                          >
+                            Mesa {m.numero}
+                          </p>
+                          <p
+                            className="text-[0.7rem]"
+                            style={{ color: 'var(--color-muted)' }}
+                          >
+                            {m.sesiones} {m.sesiones === 1 ? 'visita' : 'visitas'}{' '}
+                            · ${m.monto.toLocaleString('es-CO')}
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
         {/* Pagos recientes */}
         {pagosRecientes.length > 0 ? (
-          <section>
+          <section className="mb-8">
             <h2
               className="text-xs uppercase tracking-[0.14em] mb-3"
               style={{ color: 'var(--color-muted)' }}
@@ -447,6 +758,52 @@ export default async function MetricasPage() {
         ) : null}
       </main>
     </PanelShell>
+  );
+}
+
+function CardSemana({
+  label,
+  valor,
+  detalle,
+  destacado,
+  colorMarca,
+}: {
+  label: string;
+  valor: string;
+  detalle: string;
+  destacado?: boolean;
+  colorMarca?: string;
+}) {
+  return (
+    <div
+      className="rounded-[var(--radius-lg)] border bg-white p-4"
+      style={{
+        borderColor:
+          destacado && colorMarca ? colorMarca : 'var(--color-border)',
+        borderWidth: destacado ? 1.5 : 1,
+      }}
+    >
+      <p
+        className="text-[0.65rem] uppercase tracking-[0.12em]"
+        style={{ color: 'var(--color-muted)' }}
+      >
+        {label}
+      </p>
+      <p
+        className="font-[family-name:var(--font-display)] text-xl mt-1 tracking-[-0.02em] leading-tight"
+        style={{
+          color: destacado && colorMarca ? colorMarca : 'var(--color-ink)',
+        }}
+      >
+        {valor}
+      </p>
+      <p
+        className="text-[0.7rem] mt-1 leading-relaxed"
+        style={{ color: 'var(--color-muted)' }}
+      >
+        {detalle}
+      </p>
+    </div>
   );
 }
 
