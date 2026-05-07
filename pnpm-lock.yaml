@@ -209,6 +209,9 @@ importers:
       '@mesaya/config':
         specifier: workspace:*
         version: link:../config
+      next:
+        specifier: ^15.0.0
+        version: 15.5.15(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
