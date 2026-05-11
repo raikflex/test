@@ -10,7 +10,13 @@ interface BaseProps {
 }
 
 interface EstadoProps extends BaseProps {
-  tipo: 'aun-no-abre' | 'cerrado' | 'suspendido' | 'mesa-inactiva' | 'placeholder-pedido';
+  tipo:
+    | 'aun-no-abre'
+    | 'cerrado'
+    | 'suspendido'
+    | 'mesa-inactiva'
+    | 'placeholder-pedido'
+    | 'pausado';
   proximaApertura?: string;
 }
 
@@ -116,8 +122,28 @@ function Mensaje(props: EstadoProps) {
           className="text-sm leading-relaxed"
           style={{ color: 'var(--color-ink-soft)' }}
         >
-          El restaurante está atendiendo este momento. Si quieres pedir, llama al
-          mesero o pide directamente en la barra.
+          El restaurante no está atendiendo en este momento. Si quieres pedir,
+          llama al mesero o pide directamente en la barra.
+        </p>
+      </Card>
+    );
+  }
+
+  if (tipo === 'pausado') {
+    return (
+      <Card colorMarca={colorMarca} icon={<IconPause />}>
+        <h2
+          className="font-[family-name:var(--font-display)] text-2xl tracking-[-0.015em] mb-3"
+          style={{ color: 'var(--color-ink)' }}
+        >
+          Estamos en pausa.
+        </h2>
+        <p
+          className="text-sm leading-relaxed"
+          style={{ color: 'var(--color-ink-soft)' }}
+        >
+          Volvemos a recibir pedidos en un momento. Mientras tanto, podés
+          llamar al mesero o pedir directo en la barra.
         </p>
       </Card>
     );
@@ -249,6 +275,33 @@ function IconMenu() {
         d="M9 13h6M9 17h6"
         stroke="currentColor"
         strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function IconPause() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="6"
+        y="5"
+        width="4"
+        height="14"
+        rx="1"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+      />
+      <rect
+        x="14"
+        y="5"
+        width="4"
+        height="14"
+        rx="1"
+        stroke="currentColor"
+        strokeWidth="1.75"
         strokeLinecap="round"
       />
     </svg>

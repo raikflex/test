@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { createClient } from '@mesaya/database/server';
+import { EstadoRestauranteScreen } from '../estado-restaurante';
 import { MenuCliente } from './menu-cliente';
 
 export const dynamic = 'force-dynamic';
@@ -57,7 +58,21 @@ export default async function MenuPage({ params }: PageProps) {
     estado: string;
   } | null;
 
-  if (!restaurante || restaurante.estado !== 'activo' || !mesa.activa) {
+  if (!restaurante) {
+    notFound();
+  }
+
+  if (restaurante.estado === 'pausado') {
+    return (
+      <EstadoRestauranteScreen
+        tipo="pausado"
+        nombreNegocio={restaurante.nombre_publico}
+        colorMarca={restaurante.color_marca}
+      />
+    );
+  }
+
+  if (restaurante.estado !== 'activo' || !mesa.activa) {
     notFound();
   }
 

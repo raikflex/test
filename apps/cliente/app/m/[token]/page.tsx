@@ -76,7 +76,7 @@ export default async function MesaQRPage({ params }: PageProps) {
     id: string;
     nombre_publico: string;
     color_marca: string;
-    estado: 'activo' | 'archivado' | 'suspendido';
+    estado: 'activo' | 'archivado' | 'suspendido' | 'pausado';
     horario_apertura: string;
     horario_cierre: string;
     dias_operacion: string[];
@@ -106,6 +106,7 @@ export default async function MesaQRPage({ params }: PageProps) {
       />
     );
   }
+  
 
   if (!mesa.activa) {
     return (
@@ -114,6 +115,15 @@ export default async function MesaQRPage({ params }: PageProps) {
         nombreNegocio={restaurante.nombre_publico}
         colorMarca={restaurante.color_marca}
         numeroMesa={mesa.numero as string}
+      />
+    );
+  }
+  if (restaurante.estado === 'pausado') {
+    return (
+      <EstadoRestauranteScreen
+        tipo="pausado"
+        nombreNegocio={restaurante.nombre_publico}
+        colorMarca={restaurante.color_marca}
       />
     );
   }
