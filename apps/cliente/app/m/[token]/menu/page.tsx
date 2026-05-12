@@ -2,7 +2,11 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@mesaya/database/server';
 import { EstadoRestauranteScreen } from '../estado-restaurante';
 import { MenuCliente } from './menu-cliente';
-import { estaAbiertoAhora, type HorarioDia } from '../../../../lib/horarios';
+import {
+  estaAbiertoAhora,
+  type HorarioDia,
+  type ExcepcionDia,
+} from '../../../../lib/horarios';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,13 +84,26 @@ export default async function MenuPage({ params }: PageProps) {
 
   const restauranteId = restaurante.id;
 
-  // Defense in depth: chequear horario aqui tambien. Si entre que el cliente
-  // entro al menu y ahora paso el horario de cierre, mostrar pantalla cerrada.
-  const { data: horariosRaw } = await supabase
-    .from('horarios_atencion')
-    .select('dia_semana, abierto, hora_apertura, hora_cierre')
-    .eq('restaurante_id', restauranteId)
-    .order('dia_semana', { ascending: true });
+  // Defense in depth: chequear horario aqui con excepciones
+  const hoy = new Date().toISOString().slice(0, 10);
+  const en30Dias = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const [{ data: horariosRaw }, { data: excepcionesRaw }] = await Promise.all([
+    supabase
+      .from('horarios_atencion')
+      .select('dia_semana, abierto, hora_apertura, hora_cierre')
+      .eq('restaurante_id', restauranteId)
+      .order('dia_semana', { ascending: true }),
+    supabase
+      .from('excepciones_horario')
+      .select('fecha, abierto, hora_apertura, hora_cierre, nota')
+      .eq('restaurante_id', restauranteId)
+      .gte('fecha', hoy)
+      .lte('fecha', en30Dias)
+      .order('fecha', { ascending: true }),
+  ]);
 
   const horarios: HorarioDia[] = (horariosRaw ?? []).map((h) => ({
     dia_semana: h.dia_semana as number,
@@ -95,7 +112,15 @@ export default async function MenuPage({ params }: PageProps) {
     hora_cierre: (h.hora_cierre as string | null) ?? null,
   }));
 
-  const estadoApertura = estaAbiertoAhora(horarios);
+  const excepciones: ExcepcionDia[] = (excepcionesRaw ?? []).map((e) => ({
+    fecha: e.fecha as string,
+    abierto: e.abierto as boolean,
+    hora_apertura: (e.hora_apertura as string | null) ?? null,
+    hora_cierre: (e.hora_cierre as string | null) ?? null,
+    nota: (e.nota as string | null) ?? null,
+  }));
+
+  const estadoApertura = estaAbiertoAhora(horarios, excepciones);
   if (!estadoApertura.abierto) {
     return (
       <EstadoRestauranteScreen

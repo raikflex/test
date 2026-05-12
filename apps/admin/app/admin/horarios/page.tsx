@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@mesaya/database/server';
 import { PanelShell } from '../../_components/panel-shell';
 import { HorariosEditor } from './horarios-editor';
-import type { HorarioDia } from '../../../lib/horarios';
+import type { HorarioDia, ExcepcionDia } from '../../../lib/horarios';
 
 export const metadata = { title: 'Horarios' };
 
@@ -34,6 +34,7 @@ export default async function HorariosPage() {
     (restaurante?.nombre_publico as string) ?? 'Tu restaurante';
   const estado = (restaurante?.estado as string) ?? 'activo';
 
+  // Horario base por dia de semana
   const { data: horariosRaw } = await supabase
     .from('horarios_atencion')
     .select('dia_semana, abierto, hora_apertura, hora_cierre')
@@ -45,6 +46,28 @@ export default async function HorariosPage() {
     abierto: h.abierto as boolean,
     hora_apertura: (h.hora_apertura as string | null) ?? null,
     hora_cierre: (h.hora_cierre as string | null) ?? null,
+  }));
+
+  // Excepciones futuras (hoy + 90 dias). Filtramos en BD para no traer ruido.
+  const hoy = new Date().toISOString().slice(0, 10);
+  const en90Dias = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  const { data: excepcionesRaw } = await supabase
+    .from('excepciones_horario')
+    .select('fecha, abierto, hora_apertura, hora_cierre, nota')
+    .eq('restaurante_id', restauranteId)
+    .gte('fecha', hoy)
+    .lte('fecha', en90Dias)
+    .order('fecha', { ascending: true });
+
+  const excepciones: ExcepcionDia[] = (excepcionesRaw ?? []).map((e) => ({
+    fecha: e.fecha as string,
+    abierto: e.abierto as boolean,
+    hora_apertura: (e.hora_apertura as string | null) ?? null,
+    hora_cierre: (e.hora_cierre as string | null) ?? null,
+    nota: (e.nota as string | null) ?? null,
   }));
 
   return (
@@ -81,6 +104,7 @@ export default async function HorariosPage() {
 
         <HorariosEditor
           horariosIniciales={horarios}
+          excepcionesIniciales={excepciones}
           estadoRestaurante={estado}
         />
       </main>

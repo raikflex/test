@@ -10,7 +10,10 @@ export type HorarioInput = {
   hora_apertura: string | null;
   hora_cierre: string | null;
 };
-
+const NOMBRES_DIA = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+function nombreDia(n: number): string {
+  return NOMBRES_DIA[n] ?? `Dia ${n}`;
+}
 export type ActualizarHorariosResultado =
   | { ok: true }
   | { ok: false; error: string };
@@ -48,25 +51,25 @@ export async function actualizarHorarios(
       if (!h.hora_apertura || !h.hora_cierre) {
         return {
           ok: false,
-          error: `Dia ${h.dia_semana}: si esta abierto necesita hora de apertura y cierre.`,
+          error: `${nombreDia(h.dia_semana)}: necesita hora de apertura y cierre.`,
         };
       }
       if (!/^\d{2}:\d{2}(:\d{2})?$/.test(h.hora_apertura)) {
         return {
           ok: false,
-          error: `Dia ${h.dia_semana}: hora_apertura con formato invalido.`,
+          error: `${nombreDia(h.dia_semana)}: hora de apertura invalida.`,
         };
       }
       if (!/^\d{2}:\d{2}(:\d{2})?$/.test(h.hora_cierre)) {
         return {
           ok: false,
-          error: `Dia ${h.dia_semana}: hora_cierre con formato invalido.`,
+          error: `${nombreDia(h.dia_semana)}: hora de cierre invalida.`,
         };
       }
       if (h.hora_apertura === h.hora_cierre) {
         return {
           ok: false,
-          error: `Dia ${h.dia_semana}: apertura y cierre no pueden ser iguales.`,
+          error: `${nombreDia(h.dia_semana)}: apertura y cierre no pueden ser iguales.`,
         };
       }
     }
