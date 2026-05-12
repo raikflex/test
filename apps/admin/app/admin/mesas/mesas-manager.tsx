@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button, Field, Input, cn } from '@mesaya/ui';
 import {
   agregarMesas,
@@ -339,14 +340,40 @@ function ModalEliminarMesa({
   mesa: Mesa;
   onCancelar: () => void;
 }) {
-  return (
+  // El modal se renderea como hijo directo de <body> via Portal, evitando
+  // problemas con ancestros que tengan transform, filter, will-change, etc.,
+  // que harian que position: fixed se vuelva relativo a ese ancestro en lugar
+  // del viewport. Tambien usamos inline styles para que Tailwind no interfiera.
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 grid place-items-center px-4"
-      style={{ background: 'rgba(0,0,0,0.4)' }}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'grid',
+        placeItems: 'center',
+        padding: '1rem',
+      }}
       onClick={onCancelar}
     >
       <div
-        className="w-full max-w-md rounded-[var(--radius-lg)] bg-white p-6 shadow-2xl"
+        style={{
+          width: '100%',
+          maxWidth: '28rem',
+          background: 'white',
+          borderRadius: '14px',
+          padding: '1.5rem',
+          boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <h3
@@ -389,6 +416,7 @@ function ModalEliminarMesa({
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
