@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@mesaya/database/server';
 import { EstadoRestauranteScreen } from '../estado-restaurante';
 import { MenuCliente } from './menu-cliente';
+import { estaAbiertoAhora, type HorarioDia } from '../../../../lib/horarios';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,7 +80,34 @@ export default async function MenuPage({ params }: PageProps) {
 
   const restauranteId = restaurante.id;
 
-  // Categorías activas en orden + productos en cada una.
+  // Defense in depth: chequear horario aqui tambien. Si entre que el cliente
+  // entro al menu y ahora paso el horario de cierre, mostrar pantalla cerrada.
+  const { data: horariosRaw } = await supabase
+    .from('horarios_atencion')
+    .select('dia_semana, abierto, hora_apertura, hora_cierre')
+    .eq('restaurante_id', restauranteId)
+    .order('dia_semana', { ascending: true });
+
+  const horarios: HorarioDia[] = (horariosRaw ?? []).map((h) => ({
+    dia_semana: h.dia_semana as number,
+    abierto: h.abierto as boolean,
+    hora_apertura: (h.hora_apertura as string | null) ?? null,
+    hora_cierre: (h.hora_cierre as string | null) ?? null,
+  }));
+
+  const estadoApertura = estaAbiertoAhora(horarios);
+  if (!estadoApertura.abierto) {
+    return (
+      <EstadoRestauranteScreen
+        tipo="cerrado"
+        nombreNegocio={restaurante.nombre_publico}
+        colorMarca={restaurante.color_marca}
+        proximaApertura={estadoApertura.proximoTexto}
+      />
+    );
+  }
+
+  // Categorias activas en orden + productos en cada una.
   const [{ data: categorias }, { data: productos }] = await Promise.all([
     supabase
       .from('categorias')
