@@ -113,7 +113,76 @@ function calcularRankingProductos(data: DatosReporte): ProductoRanking[] {
   return ranking.slice(0, TOP_N_PRODUCTOS);
 }
 
-/* ============= CSV (3 archivos: sesiones + comandas + productos) ============= */
+/* ============= Pedidos por sesion (timeline de visitas con items agregados) ============= */
+
+type SesionConPedidos = {
+  sesionId: string;
+  fecha: string; // primera comanda de la sesion
+  mesaNumero: string;
+  cliente: string;
+  cantidadComandas: number;
+  totalSesion: number;
+  items: Array<{
+    nombre: string;
+    cantidad: number;
+    subtotal: number;
+  }>;
+};
+
+/**
+ * Agrupa las comandas del reporte por sesionId. Para cada sesion calcula:
+ * total, cantidad de comandas, y agrega los items duplicados (si pidieron
+ * 2 cafes en 2 comandas distintas de la misma sesion -> "Cafe x4").
+ * Devuelve la lista ordenada por fecha ascendente (timeline cronologico).
+ */
+function calcularPedidosPorSesion(data: DatosReporte): SesionConPedidos[] {
+  const mapaSesiones = new Map<string, DatosReporte['comandas']>();
+
+  for (const c of data.comandas) {
+    const arr = mapaSesiones.get(c.sesionId) ?? [];
+    arr.push(c);
+    mapaSesiones.set(c.sesionId, arr);
+  }
+
+  const resultado: SesionConPedidos[] = [];
+
+  for (const [sesionId, comandas] of mapaSesiones.entries()) {
+    const ordenadas = [...comandas].sort((a, b) => a.fecha.localeCompare(b.fecha));
+    const primera = ordenadas[0];
+    if (!primera) continue;
+
+    const mapaItems = new Map<string, { cantidad: number; subtotal: number }>();
+    for (const c of ordenadas) {
+      for (const it of c.items) {
+        const actual = mapaItems.get(it.nombre) ?? { cantidad: 0, subtotal: 0 };
+        actual.cantidad += it.cantidad;
+        actual.subtotal += it.subtotal;
+        mapaItems.set(it.nombre, actual);
+      }
+    }
+
+    const items = Array.from(mapaItems.entries())
+      .map(([nombre, v]) => ({ nombre, cantidad: v.cantidad, subtotal: v.subtotal }))
+      .sort((a, b) => b.cantidad - a.cantidad);
+
+    const totalSesion = ordenadas.reduce((acc, c) => acc + c.total, 0);
+
+    resultado.push({
+      sesionId,
+      fecha: primera.fecha,
+      mesaNumero: primera.mesaNumero,
+      cliente: primera.cliente,
+      cantidadComandas: ordenadas.length,
+      totalSesion,
+      items,
+    });
+  }
+
+  resultado.sort((a, b) => a.fecha.localeCompare(b.fecha));
+  return resultado;
+}
+
+/* ============= CSV (4 archivos: sesiones + comandas + productos + pedidos-por-sesion) ============= */
 
 export function exportarCSV(data: DatosReporte): void {
   // Archivo 1: sesiones con encabezado de resumen
@@ -233,9 +302,65 @@ export function exportarCSV(data: DatosReporte): void {
     new Blob(['\uFEFF' + csvProductos], { type: 'text/csv;charset=utf-8' }),
     `${nombreBase(data)}-productos.csv`,
   );
+
+  // Archivo 4: Pedidos por sesion (timeline con items agregados)
+  const sesionesConPedidos = calcularPedidosPorSesion(data);
+  const filasPedidosSesion: (string | number)[][] = [
+    [`Reporte: ${data.restaurante.nombre} - Pedidos por sesion`],
+    [`Periodo: ${data.rango.desde} a ${data.rango.hasta}`],
+    [],
+    [
+      'Fecha',
+      'Mesa',
+      'Cliente',
+      'Comandas',
+      'Total sesion',
+      'Producto',
+      'Cantidad',
+      'Subtotal',
+    ],
+  ];
+
+  if (sesionesConPedidos.length === 0) {
+    filasPedidosSesion.push(['', '', '', '', '', '(sin sesiones en el periodo)', '', '']);
+  } else {
+    for (const s of sesionesConPedidos) {
+      if (s.items.length === 0) {
+        filasPedidosSesion.push([
+          formatearFechaCorta(s.fecha),
+          s.mesaNumero,
+          s.cliente,
+          s.cantidadComandas,
+          s.totalSesion,
+          '(sin items)',
+          '',
+          '',
+        ]);
+      } else {
+        s.items.forEach((it, idx) => {
+          filasPedidosSesion.push([
+            idx === 0 ? formatearFechaCorta(s.fecha) : '',
+            idx === 0 ? s.mesaNumero : '',
+            idx === 0 ? s.cliente : '',
+            idx === 0 ? s.cantidadComandas : '',
+            idx === 0 ? s.totalSesion : '',
+            it.nombre,
+            it.cantidad,
+            it.subtotal,
+          ]);
+        });
+      }
+    }
+  }
+
+  const csvPedidosSesion = filasACsv(filasPedidosSesion);
+  descargar(
+    new Blob(['\uFEFF' + csvPedidosSesion], { type: 'text/csv;charset=utf-8' }),
+    `${nombreBase(data)}-pedidos-por-sesion.csv`,
+  );
 }
 
-/* ============= EXCEL (1 archivo, 3 hojas) ============= */
+/* ============= EXCEL (1 archivo, 4 hojas) ============= */
 
 export function exportarExcel(data: DatosReporte): void {
   const wb = XLSX.utils.book_new();
@@ -376,6 +501,66 @@ export function exportarExcel(data: DatosReporte): void {
   ];
   XLSX.utils.book_append_sheet(wb, hojaProductos, 'Top productos');
 
+  // Hoja 4: Pedidos por sesion (timeline con items agregados)
+  const sesionesConPedidos = calcularPedidosPorSesion(data);
+  const hojaPedidosSesionData: (string | number)[][] = [
+    [
+      'Fecha',
+      'Mesa',
+      'Cliente',
+      'Comandas',
+      'Total sesion',
+      'Producto',
+      'Cantidad',
+      'Subtotal',
+    ],
+  ];
+
+  if (sesionesConPedidos.length === 0) {
+    hojaPedidosSesionData.push(['', '', '', '', '', '(sin sesiones en el periodo)', '', '']);
+  } else {
+    for (const s of sesionesConPedidos) {
+      if (s.items.length === 0) {
+        hojaPedidosSesionData.push([
+          formatearFechaCorta(s.fecha),
+          s.mesaNumero,
+          s.cliente,
+          s.cantidadComandas,
+          s.totalSesion,
+          '(sin items)',
+          '',
+          '',
+        ]);
+      } else {
+        s.items.forEach((it, idx) => {
+          hojaPedidosSesionData.push([
+            idx === 0 ? formatearFechaCorta(s.fecha) : '',
+            idx === 0 ? s.mesaNumero : '',
+            idx === 0 ? s.cliente : '',
+            idx === 0 ? s.cantidadComandas : '',
+            idx === 0 ? s.totalSesion : '',
+            it.nombre,
+            it.cantidad,
+            it.subtotal,
+          ]);
+        });
+      }
+    }
+  }
+
+  const hojaPedidosSesion = XLSX.utils.aoa_to_sheet(hojaPedidosSesionData);
+  hojaPedidosSesion['!cols'] = [
+    { wch: 18 }, // Fecha
+    { wch: 8 },  // Mesa
+    { wch: 18 }, // Cliente
+    { wch: 10 }, // Comandas
+    { wch: 14 }, // Total sesion
+    { wch: 28 }, // Producto
+    { wch: 10 }, // Cantidad
+    { wch: 14 }, // Subtotal
+  ];
+  XLSX.utils.book_append_sheet(wb, hojaPedidosSesion, 'Pedidos por sesion');
+
   // Generar y descargar
   const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   descargar(
@@ -487,6 +672,69 @@ export function exportarPDF(data: DatosReporte): void {
     styles: { fontSize: 10 },
     margin: { left: margenIzq, right: margenIzq },
   });
+
+  // Pedidos por sesion en pagina nueva
+  doc.addPage();
+  yPos = 50;
+  doc.setFontSize(13);
+  doc.text('Pedidos por sesion', margenIzq, yPos);
+  yPos += 16;
+
+  const sesionesConPedidos = calcularPedidosPorSesion(data);
+
+  if (sesionesConPedidos.length === 0) {
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('(sin sesiones en el periodo)', margenIzq, yPos);
+    doc.setTextColor(0);
+  } else {
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margenInf = 40;
+
+    for (const s of sesionesConPedidos) {
+      // Si no queda espacio para sub-header + tabla minima, saltar de pagina
+      if (yPos + 80 > pageHeight - margenInf) {
+        doc.addPage();
+        yPos = 50;
+      }
+
+      // Sub-header de la sesion
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      const partes = [
+        formatearFechaCorta(s.fecha),
+        `Mesa ${s.mesaNumero}`,
+      ];
+      if (s.cliente) partes.push(s.cliente);
+      partes.push(`${s.cantidadComandas} ${s.cantidadComandas === 1 ? 'comanda' : 'comandas'}`);
+      partes.push(`Total $${s.totalSesion.toLocaleString('es-CO')}`);
+      doc.text(partes.join(' - '), margenIzq, yPos);
+      doc.setFont('helvetica', 'normal');
+      yPos += 6;
+
+      // Tabla de items de la sesion
+      const filasItems = s.items.length === 0
+        ? [['(sin items)', '', '']]
+        : s.items.map((it) => [
+            it.nombre,
+            String(it.cantidad),
+            `$${it.subtotal.toLocaleString('es-CO')}`,
+          ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Producto', 'Cantidad', 'Subtotal']],
+        body: filasItems,
+        theme: 'striped',
+        headStyles: { fillColor: [60, 60, 60] },
+        styles: { fontSize: 9 },
+        margin: { left: margenIzq, right: margenIzq },
+      });
+
+      // @ts-expect-error - lastAutoTable es agregado en runtime
+      yPos = (doc.lastAutoTable?.finalY ?? yPos) + 14;
+    }
+  }
 
   // Comandas con items en pagina nueva
   doc.addPage();

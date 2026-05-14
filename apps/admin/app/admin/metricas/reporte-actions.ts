@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { createClient } from '@mesaya/database/server';
 
@@ -27,6 +27,7 @@ export type DatosReporte = {
     cliente: string;
     estado: string;
     total: number;
+    sesionId: string;
     items: Array<{
       nombre: string;
       cantidad: number;
@@ -231,6 +232,7 @@ export async function obtenerDatosReporte(
       cliente: sc?.nombre ?? '',
       estado: c.estado,
       total: c.total,
+      sesionId: c.sesion_id,
       items,
     };
   });
