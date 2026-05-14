@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Helpers de exportacion para los reportes. Todo client-side: convierten
  * los datos crudos a CSV / Excel / PDF y disparan la descarga en el browser.
  */
@@ -62,7 +62,58 @@ function filasACsv(filas: (string | number)[][]): string {
   return filas.map((fila) => fila.map(escaparCsv).join(',')).join('\n');
 }
 
-/* ============= CSV (2 archivos: sesiones + comandas) ============= */
+/* ============= Ranking de productos mas vendidos (top 10) ============= */
+
+type ProductoRanking = {
+  nombre: string;
+  unidades: number;
+  ingresos: number;
+  pctUnidades: number;
+  pctIngresos: number;
+};
+
+const TOP_N_PRODUCTOS = 10;
+
+/**
+ * Agrupa los items de todas las comandas por nombre_snapshot, suma unidades e ingresos,
+ * calcula porcentajes sobre el total general y devuelve el top N ordenado por unidades.
+ */
+function calcularRankingProductos(data: DatosReporte): ProductoRanking[] {
+  const mapa = new Map<string, { unidades: number; ingresos: number }>();
+
+  for (const c of data.comandas) {
+    for (const it of c.items) {
+      const actual = mapa.get(it.nombre) ?? { unidades: 0, ingresos: 0 };
+      actual.unidades += it.cantidad;
+      actual.ingresos += it.subtotal;
+      mapa.set(it.nombre, actual);
+    }
+  }
+
+  // Totales generales (sobre TODOS los productos, no solo el top)
+  let totalUnidades = 0;
+  let totalIngresos = 0;
+  for (const v of mapa.values()) {
+    totalUnidades += v.unidades;
+    totalIngresos += v.ingresos;
+  }
+
+  const ranking: ProductoRanking[] = [];
+  for (const [nombre, v] of mapa.entries()) {
+    ranking.push({
+      nombre,
+      unidades: v.unidades,
+      ingresos: v.ingresos,
+      pctUnidades: totalUnidades > 0 ? (v.unidades / totalUnidades) * 100 : 0,
+      pctIngresos: totalIngresos > 0 ? (v.ingresos / totalIngresos) * 100 : 0,
+    });
+  }
+
+  ranking.sort((a, b) => b.unidades - a.unidades);
+  return ranking.slice(0, TOP_N_PRODUCTOS);
+}
+
+/* ============= CSV (3 archivos: sesiones + comandas + productos) ============= */
 
 export function exportarCSV(data: DatosReporte): void {
   // Archivo 1: sesiones con encabezado de resumen
@@ -152,9 +203,39 @@ export function exportarCSV(data: DatosReporte): void {
     new Blob(['\uFEFF' + csvComandas], { type: 'text/csv;charset=utf-8' }),
     `${nombreBase(data)}-comandas.csv`,
   );
+
+  // Archivo 3: Top N productos mas vendidos
+  const ranking = calcularRankingProductos(data);
+  const filasProductos: (string | number)[][] = [
+    [`Reporte: ${data.restaurante.nombre} - Top ${TOP_N_PRODUCTOS} productos mas vendidos`],
+    [`Periodo: ${data.rango.desde} a ${data.rango.hasta}`],
+    [],
+    ['Posicion', 'Producto', 'Unidades', 'Ingresos', '% unidades', '% ingresos'],
+  ];
+
+  if (ranking.length === 0) {
+    filasProductos.push(['', '(sin productos vendidos en el periodo)', '', '', '', '']);
+  } else {
+    ranking.forEach((p, idx) => {
+      filasProductos.push([
+        idx + 1,
+        p.nombre,
+        p.unidades,
+        p.ingresos,
+        `${p.pctUnidades.toFixed(1)}%`,
+        `${p.pctIngresos.toFixed(1)}%`,
+      ]);
+    });
+  }
+
+  const csvProductos = filasACsv(filasProductos);
+  descargar(
+    new Blob(['\uFEFF' + csvProductos], { type: 'text/csv;charset=utf-8' }),
+    `${nombreBase(data)}-productos.csv`,
+  );
 }
 
-/* ============= EXCEL (1 archivo, 2 hojas) ============= */
+/* ============= EXCEL (1 archivo, 3 hojas) ============= */
 
 export function exportarExcel(data: DatosReporte): void {
   const wb = XLSX.utils.book_new();
@@ -260,6 +341,41 @@ export function exportarExcel(data: DatosReporte): void {
 
   XLSX.utils.book_append_sheet(wb, hojaComandas, 'Comandas detalladas');
 
+  // Hoja 3: Top N productos mas vendidos
+  const ranking = calcularRankingProductos(data);
+  const hojaProductosData: (string | number)[][] = [
+    [`Top ${TOP_N_PRODUCTOS} productos mas vendidos`],
+    [`Periodo: ${data.rango.desde} a ${data.rango.hasta}`],
+    [],
+    ['Posicion', 'Producto', 'Unidades', 'Ingresos', '% unidades', '% ingresos'],
+  ];
+
+  if (ranking.length === 0) {
+    hojaProductosData.push(['', '(sin productos vendidos en el periodo)', '', '', '', '']);
+  } else {
+    ranking.forEach((p, idx) => {
+      hojaProductosData.push([
+        idx + 1,
+        p.nombre,
+        p.unidades,
+        p.ingresos,
+        Number(p.pctUnidades.toFixed(1)),
+        Number(p.pctIngresos.toFixed(1)),
+      ]);
+    });
+  }
+
+  const hojaProductos = XLSX.utils.aoa_to_sheet(hojaProductosData);
+  hojaProductos['!cols'] = [
+    { wch: 10 }, // Posicion
+    { wch: 28 }, // Producto
+    { wch: 10 }, // Unidades
+    { wch: 14 }, // Ingresos
+    { wch: 12 }, // % unidades
+    { wch: 12 }, // % ingresos
+  ];
+  XLSX.utils.book_append_sheet(wb, hojaProductos, 'Top productos');
+
   // Generar y descargar
   const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
   descargar(
@@ -340,6 +456,35 @@ export function exportarPDF(data: DatosReporte): void {
     theme: 'striped',
     headStyles: { fillColor: [60, 60, 60] },
     styles: { fontSize: 9 },
+    margin: { left: margenIzq, right: margenIzq },
+  });
+
+  // Top productos en pagina nueva
+  doc.addPage();
+  yPos = 50;
+  doc.setFontSize(13);
+  doc.text(`Top ${TOP_N_PRODUCTOS} productos mas vendidos`, margenIzq, yPos);
+  yPos += 8;
+
+  const ranking = calcularRankingProductos(data);
+  const filasProductos: string[][] = ranking.length === 0
+    ? [['', '(sin productos vendidos en el periodo)', '', '', '', '']]
+    : ranking.map((p, idx) => [
+        String(idx + 1),
+        p.nombre,
+        String(p.unidades),
+        `$${p.ingresos.toLocaleString('es-CO')}`,
+        `${p.pctUnidades.toFixed(1)}%`,
+        `${p.pctIngresos.toFixed(1)}%`,
+      ]);
+
+  autoTable(doc, {
+    startY: yPos,
+    head: [['#', 'Producto', 'Unidades', 'Ingresos', '% unid.', '% ingr.']],
+    body: filasProductos,
+    theme: 'striped',
+    headStyles: { fillColor: [60, 60, 60] },
+    styles: { fontSize: 10 },
     margin: { left: margenIzq, right: margenIzq },
   });
 
