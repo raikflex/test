@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { createServiceClient } from '@mesaya/database/service';
 
@@ -47,6 +47,21 @@ export async function enviarComanda(input: {
   }
 
   const admin = createServiceClient();
+
+  // 0) Rate limit - max 20 comandas por minuto por mesa.
+  const { data: dentroLimite } = await admin.rpc('check_rate_limit', {
+    p_key: input.qrToken,
+    p_action_type: 'crear_comanda',
+    p_max_requests: 20,
+    p_ventana_segundos: 60,
+  });
+
+  if (dentroLimite === false) {
+    return {
+      ok: false,
+      error: 'Demasiados intentos. Espera un momento antes de volver a intentar.',
+    };
+  }
 
   // 1) Validar mesa + restaurante.
   const { data: mesa } = await admin

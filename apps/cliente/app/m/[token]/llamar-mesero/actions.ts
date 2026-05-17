@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { createServiceClient } from '@mesaya/database/service';
 
@@ -7,14 +7,14 @@ import { createServiceClient } from '@mesaya/database/service';
  *
  * Reglas:
  *   - Solo se crea un llamado si NO hay otro pendiente del mismo motivo en la
- *     misma sesión (evita spam).
+ *     misma sesiÃ³n (evita spam).
  *   - Si ya hay uno pendiente, devolvemos ese mismo id para que la UI muestre
- *     "Ya está en camino".
+ *     "Ya estÃ¡ en camino".
  *
- * Motivos válidos en DB: 'campana' | 'pago' | 'otro'.
- *   - "Necesito ayuda" → 'campana'
- *   - "Pedir la cuenta" → 'pago'
- *   - "Otra cosa" → 'otro'
+ * Motivos vÃ¡lidos en DB: 'campana' | 'pago' | 'otro'.
+ *   - "Necesito ayuda" â†’ 'campana'
+ *   - "Pedir la cuenta" â†’ 'pago'
+ *   - "Otra cosa" â†’ 'otro'
  */
 
 export type CrearLlamadoResultado =
@@ -36,7 +36,7 @@ async function obtenerSesionAbiertaMesa(qrToken: string): Promise<
     .maybeSingle();
 
   if (!mesa || !mesa.activa) {
-    return { ok: false, error: 'Esta mesa ya no está disponible.' };
+    return { ok: false, error: 'Esta mesa ya no estÃ¡ disponible.' };
   }
 
   const restaurante = (Array.isArray(mesa.restaurantes)
@@ -46,7 +46,7 @@ async function obtenerSesionAbiertaMesa(qrToken: string): Promise<
   if (!restaurante || restaurante.estado !== 'activo') {
     return {
       ok: false,
-      error: 'El restaurante no está atendiendo en este momento.',
+      error: 'El restaurante no estÃ¡ atendiendo en este momento.',
     };
   }
 
@@ -61,7 +61,7 @@ async function obtenerSesionAbiertaMesa(qrToken: string): Promise<
     return {
       ok: false,
       error:
-        'Aún no has hecho ningún pedido. Pide algo primero y luego puedes llamar al mesero.',
+        'AÃºn no has hecho ningÃºn pedido. Pide algo primero y luego puedes llamar al mesero.',
     };
   }
 
@@ -78,12 +78,26 @@ export async function crearLlamado(input: {
   motivo: MotivoLlamado;
   nota?: string | null;
 }): Promise<CrearLlamadoResultado> {
+  // Rate limit - max 10 llamados por minuto por mesa.
+  const admin = createServiceClient();
+  const { data: dentroLimite } = await admin.rpc('check_rate_limit', {
+    p_key: input.qrToken,
+    p_action_type: 'llamar_mesero',
+    p_max_requests: 10,
+    p_ventana_segundos: 60,
+  });
+
+  if (dentroLimite === false) {
+    return {
+      ok: false,
+      error: 'Demasiados intentos. Espera un momento antes de volver a intentar.',
+    };
+  }
+
   const sesionInfo = await obtenerSesionAbiertaMesa(input.qrToken);
   if (!sesionInfo.ok) {
     return { ok: false, error: sesionInfo.error };
   }
-
-  const admin = createServiceClient();
 
   // Verificar si ya hay un llamado pendiente del mismo motivo.
   const { data: existente } = await admin
@@ -102,9 +116,9 @@ export async function crearLlamado(input: {
     };
   }
 
-  // Persistir la nota del cliente. El mesero la verá en su tablero para saber
-  // qué pidió el cliente sin tener que ir físicamente a preguntar (ej:
-  // "necesito otra cuchara", "más servilletas", etc.).
+  // Persistir la nota del cliente. El mesero la verÃ¡ en su tablero para saber
+  // quÃ© pidiÃ³ el cliente sin tener que ir fÃ­sicamente a preguntar (ej:
+  // "necesito otra cuchara", "mÃ¡s servilletas", etc.).
   const notaLimpia = input.nota?.trim();
   const notaParaGuardar =
     notaLimpia && notaLimpia.length > 0
@@ -136,7 +150,7 @@ export async function crearLlamado(input: {
 
 /**
  * Cancela un llamado pendiente. Solo se puede si sigue en 'pendiente'.
- * Si el mesero ya lo tomó, no se puede cancelar.
+ * Si el mesero ya lo tomÃ³, no se puede cancelar.
  */
 export async function cancelarLlamado(input: {
   qrToken: string;
@@ -163,7 +177,7 @@ export async function cancelarLlamado(input: {
   if (llamado.estado !== 'pendiente') {
     return {
       ok: false,
-      error: 'El mesero ya tomó este llamado. No se puede cancelar.',
+      error: 'El mesero ya tomÃ³ este llamado. No se puede cancelar.',
     };
   }
 
